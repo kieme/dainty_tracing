@@ -27,145 +27,31 @@
 #ifndef _DAINTY_TRACING_TRACER_H_
 #define _DAINTY_TRACING_TRACER_H_
 
-#define TRACE_NARG(...)  TRACE_NARG_(__VA_ARGS__, TRACE_POS_)
-#define TRACE_NARG_(...) TRACE_ARG_N(__VA_ARGS__)
-#define TRACE_ARG_N( \
-          a1, a2, a3, a4, a5, a6, a7, a8, a9,a10, \
-         a11,a12,a13,a14,a15,a16,a17,a18,a19,a20, \
-         a21,a22,a23,a24,a25,a26,a27,a28,a29,a30, \
-         a31,a32,a33,a34,a35,a36,a37,a38,a39,a40, \
-         a41,a42,a43,a44,a45,a46,a47,a48,a49,a50, \
-         a51,a52,a53,a54,a55,a56,a57,a58,a59,a60, \
-         a61,a62,a63,POS,...) POS
-#define TRACE_POS_               \
-         N,N,N,N,             \
-         N,N,N,N,N,N,N,N,N,N, \
-         N,N,N,N,N,N,N,N,N,N, \
-         N,N,N,N,N,N,N,N,N,N, \
-         N,N,N,N,N,N,N,N,N,N, \
-         N,N,N,N,N,N,N,N,N,N, \
-         N,N,N,N,N,N,N,N,1
+#include "dainty_container_freelist.h"
+#include "dainty_named_string.h"
+#include "dainty_tracing_err.h"
 
-#define TRACE_WRAP_1(a)  a
-#define TRACE_WRAP_N     dainty::tracing::tracer::textstring_t
-#define TRACE_CNT_(...)  TRACE_NARG(__VA_ARGS__)
-#define TRACE_EXPAND_(x) x
-#define TRACE_ADD_(a, b) a ## b
-#define TRACE_PRE_(a, b) TRACE_ADD_(a,b)
-#define TRACE_PACK_(...) \
-  TRACE_PRE_(TRACE_WRAP_, TRACE_EXPAND_(TRACE_CNT_(__VA_ARGS__)))
+#define DAINTY_TR_(TR, LEVEL, TEXT)                                         \
+  dainty::tracing::tracer::ref(TR).post((LEVEL), TEXT);
 
-#define DAINTY_TR_0(SOURCE, LEVEL, PARAMS)                               \
-  do {                                                                   \
-    if (dainty::tracing::tracer::ref(SOURCE).match(LEVEL))               \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        post((LEVEL), TRACE_PACK_ PARAMS PARAMS);                        \
-  } while (false)
-
-#define DAINTY_TR_ALWAYS_0(SOURCE, LEVEL, PARAMS)                        \
-  do {                                                                   \
-    if (dainty::tracing::tracer::ref(SOURCE).match(LEVEL))               \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        guaranteed_post((LEVEL), TRACE_PACK_ PARAMS PARAMS);             \
-  } while (false)
-
-#define DAINTY_TR_IF_0(COND, SOURCE, LEVEL, PARAMS)                      \
-  do {                                                                   \
-    if ((COND) && dainty::tracing::tracer::ref(SOURCE).match(LEVEL))     \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        post((LEVEL), TRACE_PACK_ PARAMS PARAMS);                        \
-  } while (false)
-
-#define DAINTY_TR_ALWAYS_IF_0(COND, SOURCE, LEVEL, PARAMS)               \
-  do {                                                                   \
-    if ((COND) && dainty::tracing::tracer::ref(SOURCE).match(LEVEL))     \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        guaranteed_post((LEVEL), TRACE_PACK_ PARAMS PARAMS);             \
-  } while (false)
-
-#define DAINTY_TR_1(SOURCE, LEVEL, ...)                                  \
-  do {                                                                   \
-    if (dainty::tracing::tracer::ref(SOURCE).match(LEVEL)) {             \
-      dainty::tracing::tracer::textstring_t text;                        \
-      text += __VA_ARGS__;                                               \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        post((LEVEL), text);                                             \
-    }                                                                    \
-  } while (false)
-
-#define DAINTY_TR_ALWAYS_1(SOURCE, LEVEL, ...)                           \
-  do {                                                                   \
-    if (dainty::tracing::tracer::ref(SOURCE).match(LEVEL)) {             \
-      dainty::tracing::tracer::textstring_t text;                        \
-      text += __VA_ARGS__;                                               \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        guaranteed_post((LEVEL), text);                                  \
-    }                                                                    \
-  } while (false)
-
-#define DAINTY_TR_IF_1(COND, SOURCE, LEVEL, ...)                         \
-  do {                                                                   \
-    if ((COND) && dainty::tracing::tracer::ref(SOURCE).match(LEVEL)) {   \
-      dainty::tracing::tracer::textstring_t text;                        \
-      text += __VA_ARGS__;                                               \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        post((LEVEL), text);                                             \
-    }                                                                    \
-  } while (false)
-
-#define DAINTY_TR_ALWAYS_IF_1(COND, SOURCE, LEVEL, ...)                  \
-  do {                                                                   \
-    if ((COND) && dainty::tracing::tracer::ref(SOURCE).match(LEVEL)) {   \
-      dainty::tracing::tracer::textstring_t text;                        \
-      text += __VA_ARGS__;                                               \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        guaranteed_post((LEVEL), text);                                  \
-    }                                                                    \
-  } while (false)
-
-#define DAINTY_TR(SOURCE, LEVEL, COMP, TYPE, CODE, ...)                  \
-  do {                                                                   \
-    if (dainty::tracing::tracer::ref(SOURCE).match(LEVEL)) {             \
-      dainty::tracing::tracer::textstring_t text;                        \
-      text += __VA_ARGS__;                                               \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        post((LEVEL), (COMP), (TYPE), (CODE), text);                     \
-    }                                                                    \
-  } while (false)
-
-#define DAINTY_TR_ALWAYS(SOURCE, LEVEL, COMP, TYPE, CODE, ...)           \
-  do {                                                                   \
-    if (dainty::tracing::tracer::ref(SOURCE).match(LEVEL)) {             \
-      dainty::tracing::tracer::textstring_t text;                        \
-      text += __VA_ARGS__;                                               \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        guaranteed_post((LEVEL), (COMP), (TYPE), (CODE), text);          \
-    }                                                                    \
-  } while (false)
-
-#define DAINTY_TR_IF(COND, SOURCE, LEVEL, COMP, TYPE, CODE, ...)         \
-  do {                                                                   \
-    if ((COND) && dainty::tracing::tracer::ref(SOURCE).match(LEVEL)) {   \
-      dainty::tracing::tracer::textstring_t text;                        \
-      text += __VA_ARGS__;                                               \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        post((LEVEL), (COMP), (TYPE), (CODE), text);                     \
-    }                                                                    \
-  } while (false)
-
-#define DAINTY_TR_ALWAYS_IF(COND, SOURCE, LEVEL, COMP, TYPE, CODE, ...)  \
-  do {                                                                   \
-    if ((COND) && dainty::tracing::tracer::ref(SOURCE).match(LEVEL)) {   \
-      dainty::tracing::tracer::textstring_t text;                        \
-      text += __VA_ARGS__;                                               \
-      dainty::tracing::tracer::ref(SOURCE).                              \
-        guaranteed_post((LEVEL), (COMP), (TYPE), (CODE), text);          \
-    }                                                                    \
-  } while (false)
+#define DAINTY_TR_EMERG(TR, TEXT)                                           \
+  DAINTY_TR_(TR, dainty::tracing::tracer::EMERG, TEXT)
+#define DAINTY_TR_ALERT(TR, TEXT)                                           \
+  DAINTY_TR_(TR, dainty::tracing::tracer::ALERT, TEXT)
+#define DAINTY_TR_CRITICAL(TR, TEXT)                                        \
+  DAINTY_TR_(TR, dainty::tracing::tracer::CRITICAL, TEXT)
+#define DAINTY_TR_ERROR(TR, TEXT)                                           \
+  DAINTY_TR_(TR, dainty::tracing::tracer::ERROR, TEXT)
+#define DAINTY_TR_WARNING(TR, TEXT)                                         \
+  DAINTY_TR_(TR, dainty::tracing::tracer::WARNING, TEXT)
+#define DAINTY_TR_NOTICE(TR, TEXT)                                          \
+  DAINTY_TR_(TR, dainty::tracing::tracer::NOTICE, TEXT)
+#define DAINTY_TR_INFO(TR, TEXT)                                            \
+  DAINTY_TR_(TR, dainty::tracing::tracer::INFO, TEXT)
+#define DAINTY_TR_DEBUG(TR, TEXT)                                           \
+  DAINTY_TR_(TR, dainty::tracing::tracer::DEBUG, TEXT)
 
 ///////////////////////////////////////////////////////////////////////////////
-
-#include "dainty_tracing_observer.h"
 
 namespace dainty
 {
@@ -173,80 +59,103 @@ namespace tracing
 {
 namespace tracer
 {
-  using named::p_cstr;
+  using named::string::t_string;
+  using named::p_cstr_;
+  using named::t_void;
+  using named::t_bool;
+  using named::t_validity;
+  using named::VALID;
+  using named::INVALID;
+  using named::string::FMT;
+
+///////////////////////////////////////////////////////////////////////////////
 
   using t_credit = named::t_uint32;
 
-  enum  t_name_tag_ { };
-  using t_name = named::t_string<t_name_tag_ , 32>;
+  enum  t_name_tag_ {};
+  using t_name = t_string<t_name_tag_, 32>;
+
+  enum  t_textline_tag_ {};
+  using t_textline = t_string<t_textline_tag_, 60>;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  int_t shared_printf (p_cstr fm, ...) __attribute__((format(printf, 1, 2)));
-  int_t shared_vprintf(p_cstr fmt, va_list vars);
+  enum t_level {
+    NONE     = -1,
+    EMERG    = 0,
+    ALERT    = 1,
+    CRITICAL = 2,
+    ERROR    = 3,
+    WARNING  = 4,
+    NOTICE   = 5,
+    INFO     = 6,
+    DEBUG    = 7
+  };
+
+  enum  t_levelname_tag_ { };
+  using t_levelname = t_string<t_levelname_tag_, 10>;
+
+  t_levelname to_name(t_level);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_level         default_sourcelevel();
-  t_credit        default_sourcecredit();
+  t_level  default_level ();
+  t_credit default_credit();
 
-///////////////////////////////////////////////////////////////////////////////
+  class t_params {
+  public:
+    t_level  level;
+    t_bool   bind_to_all;
+    t_credit credit;
 
-  struct t_params {
-    t_params(t_level level = default_sourcelevel(),
-             t_bool  bind_to_all_observers,
-             t_bool  ns_format,
-             t_credit        credit  = default_sourcecredit())
-      : level_  (level),
-        options_(options),
-        credit_ (credit)
-    { }
-
-    t_level  level_;
-    t_credit credit_;
+    t_params(t_level  _level       = default_level(),
+             t_bool   _bind_to_all = false,
+             t_credit _credit      = default_credit())
+      : level      (_level),
+        bind_to_all(_bind_to_all),
+        credit     (_credit) {
+    }
   };
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  struct t_id {
-    t_id()                           : offset_(-1),     seq_(0)   { }
-    t_id(offset_t offset, seq_t seq) : offset_(offset), seq_(seq) { }
+  class t_id {
+  public:
+    using t_seq      = named::t_int32;
+    using t_impl_id_ = container::freelist::t_id;
 
-    operator t_bool() const                 { return offset_ != -1; }
+    t_id() : seq_(-1), id_(0) {
+    }
+    t_id(const t_id&) = default;
+
+    operator t_validity() const  { return seq_ != -1 ? VALID : INVALID; }
 
     t_id release() {
       t_id tmp(*this);
-      offset_ = -1;
+      seq_ = -1;
       return tmp;
     }
 
-    offset_t offset_;
-    seq_t    seq_;
-  };
+  private:
+    friend class t_point;
+    t_id(t_seq seq, t_impl_id_ id) : seq_(seq), id_(id) {
+    }
 
-  t_bool operator==(const t_id&, const t_id&);
-  t_bool operator!=(const t_id&, const t_id&);
-
-///////////////////////////////////////////////////////////////////////////////
-
-  // does not require to be here
-  class t_info_ {
-  public:
-    t_id     id;
-    t_name   name;
-    t_params params;
-    t_stats  stats;
+    t_seq      seq_;
+    t_impl_id_ id_;
   };
 
 ///////////////////////////////////////////////////////////////////////////////
 
   class t_point {
   public:
-    void_t post(t_level, t_cptr) const;
-    void_t post(t_level, const textstring_t&) const;
+    t_point& operator=(const t_point&) = delete;
 
-    void_t certain_post(t_level, t_cptr) const;
-    void_t certain_post(t_level, const textstring_t&) const;
+    t_bool post(       t_level, const t_textline&) const;
+    t_bool post(t_err, t_level, const t_textline&) const;
+
+    t_validity certain_post(       t_level, const t_textline&) const;
+    t_validity certain_post(t_err, t_level, const t_textline&) const;
 
     t_name  get_name () const;
     t_level get_level() const;
@@ -254,20 +163,24 @@ namespace tracer
     operator t_validity() const { return id_; }
 
   private:
-    t_point(const t_id& id) : id_(id)                                { }
-    inline t_point release()          { return t_point(id_.release()); }
-
     friend class t_tracer;
-    friend class access_t;
+    t_point() = default;
+    t_point(const t_point&) = default;
+    t_point(const t_id& id, const t_name& name)
+      : id_(id), name_{name} {
+    }
 
-    t_id id_;
+    inline t_point release() { return t_point(id_.release(), name_); }
+
+    t_id   id_;
+    t_name name_;
   };
 
 ////////////////////////////////////////////////////////////////////////////////
 
   class t_tracer {
   public:
-    t_tracer() : point_(t_id())                             { }
+    t_tracer() = default;
     t_tracer(t_tracer&&);
     t_tracer& operator=(t_tracer&&);
     ~t_tracer();
@@ -275,7 +188,7 @@ namespace tracer
     t_tracer(const t_tracer&)            = delete;
     t_tracer& operator=(const t_tracer&) = delete;
 
-    inline operator t_validity() const        { return point_.id_; }
+    inline operator t_validity() const        { return point_;  }
 
     inline       t_point* operator->()        { return &point_; }
     inline const t_point* operator->() const  { return &point_; }
@@ -283,14 +196,21 @@ namespace tracer
     inline       t_point& operator*()         { return point_; }
     inline const t_point& operator*() const   { return point_; }
 
-    inline t_point make_point(t_user);
+    t_point make_point(const t_name&);
 
   private:
-    friend class access_t;
-    inline t_tracer(const t_id& id) : point_(id)            { }
+    friend t_tracer mk_(const t_id&, const t_name&);
+    inline
+    t_tracer(const t_id& id, const t_name& name) : point_(id, name) {
+    }
 
     t_point point_;
   };
+
+///////////////////////////////////////////////////////////////////////////////
+
+  t_validity shared_trace(       const t_textline&);
+  t_validity shared_trace(t_err, const t_textline&);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -299,6 +219,12 @@ namespace tracer
 
   inline       t_point& ref(      t_tracer& point) { return *point;}
   inline const t_point& ref(const t_tracer& point) { return *point;}
+
+////////////////////////////////////////////////////////////////////////////////
+
+  t_tracer mk_(const t_id& id, const t_name& name) {
+    return { id, name };
+  }
 
 ////////////////////////////////////////////////////////////////////////////////
 }

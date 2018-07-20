@@ -187,12 +187,14 @@ namespace tracing
     t_bool      to_observers;
     t_time_mode time_mode;
     t_mode      mode;
+    t_n         textline_len;
     const t_n   queuesize;
 
     t_params() : to_terminal (true),
                  to_observers(true),
                  time_mode   (DATE),
                  mode        (CONFIG),
+                 textline_len(100),
                  queuesize   (4000) {
     }
 
@@ -200,11 +202,13 @@ namespace tracing
              t_bool      _to_observers,
              t_time_mode _time_mode,
              t_mode      _mode,
+             t_n         _textline_len,
              t_n         _queuesize)
       : to_terminal (_to_terminal),
         to_observers(_to_observers),
         time_mode   (_time_mode),
         mode        (_mode),
+        textline_len(_textline_len),
         queuesize   (_queuesize) {
     }
   };

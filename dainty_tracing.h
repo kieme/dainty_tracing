@@ -112,7 +112,7 @@ namespace tracing
   public:
     using t_n = tracing::t_n;
 
-    t_stats()                                         { reset(); }
+    t_stats()                                             { reset(); }
 
     t_n get      (t_level level) const { return t_n{  used_[level]}; }
     t_n increment(t_level level)       { return t_n{++used_[level]}; }
@@ -185,14 +185,12 @@ namespace tracing
   public:
     t_bool      to_terminal;
     t_bool      to_observers;
-    t_bool      enable_ring;
     t_time_mode time_mode;
     t_mode      mode;
-    t_n         queuesize;
+    const t_n   queuesize;
 
     t_params() : to_terminal (true),
                  to_observers(true),
-                 enable_ring (false),
                  time_mode   (DATE),
                  mode        (CONFIG),
                  queuesize   (4000) {
@@ -200,13 +198,11 @@ namespace tracing
 
     t_params(t_bool      _to_terminal,
              t_bool      _to_observers,
-             t_bool      _enable_ring,
              t_time_mode _time_mode,
              t_mode      _mode,
              t_n         _queuesize)
       : to_terminal (_to_terminal),
         to_observers(_to_observers),
-        enable_ring (_enable_ring),
         time_mode   (_time_mode),
         mode        (_mode),
         queuesize   (_queuesize) {
@@ -215,10 +211,10 @@ namespace tracing
 
 ////////////////////////////////////////////////////////////////////////////////
 
-  // can start and stop -XXX
-  t_bool is_running();
-  t_void update(const t_params&);
-  t_void fetch (t_params&);
+  t_validity start(t_err);
+  t_bool     is_running();
+  t_void     update(const t_params&);
+  t_void     fetch (t_params&);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -256,7 +252,7 @@ namespace tracing
 
   t_bool   bind_tracers (t_err, const t_observer_name&, const t_wildcard_name&);
   t_bool unbind_tracers (t_err, const t_observer_name&, const t_wildcard_name&);
-  t_bool tracer_is_bound(t_err, const t_observer_name&, const t_tracer_name&);
+  t_bool is_tracer_bound(t_err, const t_observer_name&, const t_tracer_name&);
 
   t_validity fetch_bound_tracers(t_err, const t_observer_name&,
                                         t_tracer_names&);

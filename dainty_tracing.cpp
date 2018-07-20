@@ -30,11 +30,18 @@ namespace dainty
 {
 namespace tracing
 {
+namespace {
+  // all my worker code
+}
+
+///////////////////////////////////////////////////////////////////////////////
 namespace tracer
 {
   t_levelname to_name(t_level) {
     return t_levelname();
   }
+
+///////////////////////////////////////////////////////////////////////////////
 
   t_level default_level() {
     return NONE;
@@ -52,21 +59,21 @@ namespace tracer
     return false;
   }
 
-///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
-  t_bool t_point::post(t_level, const t_textline&) const {
+  t_bool t_point::post(t_level, t_textline&&) const {
     return true;
   }
 
-  t_bool t_point::post(t_err, t_level, const t_textline&) const {
+  t_bool t_point::post(t_err, t_level, t_textline&&) const {
     return true;
   }
 
-  t_validity t_point::certain_post(t_level, const t_textline&) const {
+  t_validity t_point::waitable_post(t_level, t_textline&&) const {
     return INVALID;
   }
 
-  t_validity t_point::certain_post(t_err, t_level, const t_textline&) const {
+  t_validity t_point::waitable_post(t_err, t_level, t_textline&&) const {
     return INVALID;
   }
 
@@ -104,9 +111,9 @@ namespace tracer
   t_validity shared_trace(t_err, const t_textline&) {
     return INVALID;
   }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
-}
 
   t_output_name to_name(t_output) {
     return t_output_name();
@@ -125,6 +132,10 @@ namespace tracer
   }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+  t_validity start(t_err) {
+    return VALID;
+  }
 
   t_bool is_running() {
     return false;
@@ -202,11 +213,11 @@ namespace tracer
   }
 
   t_bool unbind_tracers(t_err, const t_observer_name&,
-                        const t_wildcard_name&) {
+                               const t_wildcard_name&) {
     return false;
   }
 
-  t_bool tracer_is_bound(t_err, const t_observer_name&, const t_tracer_name&) {
+  t_bool is_tracer_bound(t_err, const t_observer_name&, const t_tracer_name&) {
     return false;
   }
 

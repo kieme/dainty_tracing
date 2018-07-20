@@ -27,12 +27,13 @@
 #ifndef _DAINTY_TRACING_TRACER_H_
 #define _DAINTY_TRACING_TRACER_H_
 
+#include <utility>
 #include "dainty_container_freelist.h"
 #include "dainty_named_string.h"
 #include "dainty_tracing_err.h"
 
 #define DAINTY_TR_(TR, LEVEL, TEXT)                                         \
-  dainty::tracing::tracer::ref(TR).post((LEVEL), TEXT);
+  dainty::tracing::tracer::ref(TR).post((LEVEL), std::move(TEXT));
 
 #define DAINTY_TR_EMERG(TR, TEXT)                                           \
   DAINTY_TR_(TR, dainty::tracing::tracer::EMERG, TEXT)
@@ -76,7 +77,7 @@ namespace tracer
   using t_name = t_string<t_name_tag_, 32>;
 
   enum  t_textline_tag_ {};
-  using t_textline = t_string<t_textline_tag_, 60>;
+  using t_textline = t_string<t_textline_tag_>;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -151,11 +152,11 @@ namespace tracer
   public:
     t_point& operator=(const t_point&) = delete;
 
-    t_bool post(       t_level, const t_textline&) const;
-    t_bool post(t_err, t_level, const t_textline&) const;
+    t_bool post(       t_level, t_textline&&) const;
+    t_bool post(t_err, t_level, t_textline&&) const;
 
-    t_validity certain_post(       t_level, const t_textline&) const;
-    t_validity certain_post(t_err, t_level, const t_textline&) const;
+    t_validity waitable_post(       t_level, t_textline&&) const;
+    t_validity waitable_post(t_err, t_level, t_textline&&) const;
 
     t_name  get_name () const;
     t_level get_level() const;

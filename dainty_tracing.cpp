@@ -26,19 +26,21 @@
 
 #include "dainty_mt_waitable_chained_queue.h"
 #include "dainty_mt_command.h"
-#include "dainty_mt_detached_thread.h"
+#include "dainty_mt_thread.h"
+#include "dainty_os_threading.h"
 #include "dainty_tracing.h"
 
 using namespace dainty::named;
 using namespace dainty::mt;
 
-using detached_thread::t_thread;
-using t_thd_err       = t_thread::t_logic::t_err;
+using dainty::os::threading::t_mutex_lock;
+using dainty::mt::thread::t_thread;
+using dainty::tracing::tracer::t_textline;
 
+using t_thd_err       = t_thread::t_logic::t_err;
 using t_cmd_err       = command::t_processor::t_logic::t_err;
 using t_cmd_client    = command::t_client;
 using t_cmd_processor = command::t_processor;
-
 using t_que_client    = waitable_chained_queue::t_client;
 using t_que_processor = waitable_chained_queue::t_processor;
 
@@ -46,8 +48,11 @@ namespace dainty
 {
 namespace tracing
 {
-namespace
-{
+///////////////////////////////////////////////////////////////////////////////
+
+  //commands
+
+///////////////////////////////////////////////////////////////////////////////
   class t_logic : public t_thread::t_logic,
                   public t_cmd_processor::t_logic,
                   public t_que_processor::t_logic {
@@ -73,21 +78,27 @@ namespace
       return VALID;
     }
 
-    virtual t_validity prepare(t_thd_err) noexcept override {
+    virtual t_validity prepare(t_thd_err err) noexcept override {
       return VALID;
     }
 
-    virtual t_void run() noexcept override {
+    virtual p_void run() noexcept override {
       // loop
+      //event_dispatcher
+      return nullptr;
     }
 
-    virtual t_void process(t_cmd_err, t_user, r_command) noexcept override {
+    virtual t_void process(t_cmd_err err, t_user,
+                           r_command cmd) noexcept override {
+      // process all the commands
     }
 
-    virtual t_void async_process(t_user, p_command) noexcept override {
+    virtual t_void async_process(t_user, p_command cmd) noexcept override {
+      // not used
     }
 
-    virtual t_void async_process(t_chain) noexcept override {
+    virtual t_void async_process(t_chain chain) noexcept override {
+      // handle items
     }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -96,6 +107,8 @@ namespace
     t_params        params_;
     t_cmd_processor cmd_processor_;
     t_que_processor que_processor_;
+    // observers
+    // tracers
   };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -109,16 +122,64 @@ namespace
         thread_    {err, p_cstr{"tracing"}, &logic_, false} {
     }
 
-    // commands
+///////////////////////////////////////////////////////////////////////////////
+
+    t_bool post(t_level level, t_textline&& line) const {
+      return false;
+    }
+
+    t_bool post(t_err err, t_level level, t_textline&& line) const {
+      T_ERR_GUARD(err) {
+      }
+      return false;
+    }
+
+    t_validity waitable_post(t_level level, t_textline&& line) const {
+      return INVALID;
+    }
+
+    t_validity waitable_post(t_err err, t_level level,
+                             t_textline&& line) const {
+      T_ERR_GUARD(err) {
+      }
+      return INVALID;
+    }
+
+///////////////////////////////////////////////////////////////////////////////
+
   private:
     t_logic      logic_;
     t_cmd_client cmd_client_;
     t_que_client que_client_;
     t_thread     thread_;
   };
-}
+
 
 ///////////////////////////////////////////////////////////////////////////////
+
+  t_tracing* tr_ = nullptr;
+
+  struct automatic_start {
+    automatic_start() {
+      t_err err;
+      if (start(err) == INVALID) {
+      }
+    }
+
+    ~automatic_start() {
+      if (tr_) {
+        //t_die_cmd;
+        // tr_.die_now();
+      }
+    }
+  };
+
+///////////////////////////////////////////////////////////////////////////////
+
+  automatic_start start_;
+
+///////////////////////////////////////////////////////////////////////////////
+
 namespace tracer
 {
   t_levelname to_name(t_level) {
@@ -143,19 +204,34 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_bool t_point::post(t_level, t_textline&&) const {
-    return true;
+  t_bool t_point::post(t_level level, t_textline&& line) const {
+    if (tracing::tr_)
+      return tracing::tr_->post(level, std::move(line));
+    return false;
   }
 
-  t_bool t_point::post(t_err, t_level, t_textline&&) const {
-    return true;
+  t_bool t_point::post(t_err err, t_level level, t_textline&& line) const {
+    T_ERR_GUARD(err) {
+      if (tracing::tr_)
+        return tracing::tr_->post(err, level, std::move(line));
+      err = E_XXX;
+    }
+    return false;
   }
 
-  t_validity t_point::waitable_post(t_level, t_textline&&) const {
+  t_validity t_point::waitable_post(t_level level, t_textline&& line) const {
+    if (tracing::tr_)
+      return tracing::tr_->waitable_post(level, std::move(line));
     return INVALID;
   }
 
-  t_validity t_point::waitable_post(t_err, t_level, t_textline&&) const {
+  t_validity t_point::waitable_post(t_err err, t_level level,
+                                    t_textline&& line) const {
+    T_ERR_GUARD(err) {
+      if (tracing::tr_)
+        return tracing::tr_->waitable_post(err, level, std::move(line));
+      err = E_XXX;
+    }
     return INVALID;
   }
 
@@ -215,11 +291,28 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_validity start(t_err) {
-    return VALID;
+  t_validity start(t_err err) {
+    T_ERR_GUARD(err) {
+      static t_mutex_lock lock(err);
+      <% auto scope = lock.make_locked_scope(err);
+        if (scope == VALID) {
+          if (!tr_) {
+            tr_ = new t_tracing{err, t_params{}};
+            if (err) {
+              delete tr_;
+              tr_ = nullptr;
+            }
+          }
+          return VALID;
+        }
+      %>
+    }
+    return INVALID;
   }
 
   t_bool is_running() {
+    if (tr_)
+      return true;
     return false;
   }
 

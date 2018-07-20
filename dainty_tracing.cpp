@@ -24,14 +24,98 @@
 
 ******************************************************************************/
 
+#include "dainty_mt_waitable_chained_queue.h"
+#include "dainty_mt_command.h"
+#include "dainty_mt_detached_thread.h"
 #include "dainty_tracing.h"
+
+using namespace dainty::named;
+using namespace dainty::mt;
+
+using detached_thread::t_thread;
+using t_thd_err       = t_thread::t_logic::t_err;
+
+using t_cmd_err       = command::t_processor::t_logic::t_err;
+using t_cmd_client    = command::t_client;
+using t_cmd_processor = command::t_processor;
+
+using t_que_client    = waitable_chained_queue::t_client;
+using t_que_processor = waitable_chained_queue::t_processor;
 
 namespace dainty
 {
 namespace tracing
 {
-namespace {
-  // all my worker code
+namespace
+{
+  class t_logic : public t_thread::t_logic,
+                  public t_cmd_processor::t_logic,
+                  public t_que_processor::t_logic {
+  public:
+    t_logic(tracing::t_err err, const t_params& params)
+      : params_{params},
+        cmd_processor_{err},
+        que_processor_{err, params.queuesize} {
+    }
+
+    t_cmd_client make_cmd_client() {
+      return cmd_processor_.make_client(command::t_user{0L});
+    }
+
+    t_que_client make_que_client() {
+      return que_processor_.make_client(waitable_chained_queue::t_user{0L});
+    }
+
+///////////////////////////////////////////////////////////////////////////////
+
+    virtual t_validity update(t_thd_err err,
+                              ::pthread_attr_t&) noexcept override {
+      return VALID;
+    }
+
+    virtual t_validity prepare(t_thd_err) noexcept override {
+      return VALID;
+    }
+
+    virtual t_void run() noexcept override {
+      // loop
+    }
+
+    virtual t_void process(t_cmd_err, t_user, r_command) noexcept override {
+    }
+
+    virtual t_void async_process(t_user, p_command) noexcept override {
+    }
+
+    virtual t_void async_process(t_chain) noexcept override {
+    }
+
+///////////////////////////////////////////////////////////////////////////////
+
+  private:
+    t_params        params_;
+    t_cmd_processor cmd_processor_;
+    t_que_processor que_processor_;
+  };
+
+///////////////////////////////////////////////////////////////////////////////
+
+  class t_tracing {
+  public:
+    t_tracing(t_err err, const t_params& params)
+      : logic_     {err, params},
+        cmd_client_{logic_.make_cmd_client()},
+        que_client_{logic_.make_que_client()},
+        thread_    {err, p_cstr{"tracing"}, &logic_, false} {
+    }
+
+    // commands
+  private:
+    t_logic      logic_;
+    t_cmd_client cmd_client_;
+    t_que_client que_client_;
+    t_thread     thread_;
+  };
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -40,8 +124,6 @@ namespace tracer
   t_levelname to_name(t_level) {
     return t_levelname();
   }
-
-///////////////////////////////////////////////////////////////////////////////
 
   t_level default_level() {
     return NONE;
@@ -59,7 +141,7 @@ namespace tracer
     return false;
   }
 
-//////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
   t_bool t_point::post(t_level, t_textline&&) const {
     return true;
@@ -85,7 +167,7 @@ namespace tracer
     return NONE;
   }
 
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
   t_tracer::t_tracer(t_tracer&& tracer) : point_{tracer.point_.release()} {
   }
@@ -113,7 +195,7 @@ namespace tracer
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
   t_output_name to_name(t_output) {
     return t_output_name();
@@ -131,7 +213,7 @@ namespace tracer
     return NONE;
   }
 
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
   t_validity start(t_err) {
     return VALID;
@@ -147,7 +229,7 @@ namespace tracer
   t_void fetch(t_params&) {
   }
 
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
   tracer::t_tracer make_tracer(t_err, const t_tracer_name& name,
                                       const t_tracer_params&) {
@@ -176,7 +258,7 @@ namespace tracer
     return false;
   }
 
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
   t_validity create_observer(t_err, const t_observer_name&,
                                     const t_observer_params&) {
@@ -205,7 +287,7 @@ namespace tracer
     return false;
   }
 
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
   t_bool bind_tracers (t_err, const t_observer_name&,
                               const t_wildcard_name&) {
@@ -226,12 +308,12 @@ namespace tracer
     return VALID;
   }
 
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
   t_bool destroy_tracer_(tracer::t_id) {
     return false;
   }
 
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 }
 }

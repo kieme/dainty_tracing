@@ -202,10 +202,10 @@ namespace tracing
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_validity start(t_err);
   t_bool     is_running();
-  t_void     update(const t_params&);
-  t_void     fetch (t_params&);
+  t_validity start (t_err);
+  t_validity update(t_err, const t_params&);
+  t_validity fetch (t_err, t_params&);
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -222,7 +222,7 @@ namespace tracing
   t_bool fetch_tracer (t_err, const t_tracer_name&, t_tracer_info&,
                               t_bool clearstats = false);
 
-  t_bool fetch_tracers(t_tracer_infos&, t_bool clearstats = false);
+  t_bool fetch_tracers(t_err, t_tracer_infos&, t_bool clearstats = false);
 
 ///////////////////////////////////////////////////////////////////////////////
 

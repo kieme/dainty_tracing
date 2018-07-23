@@ -244,9 +244,7 @@ namespace tracing
   t_bool   bind_tracers (t_err, const t_observer_name&, const t_wildcard_name&);
   t_bool unbind_tracers (t_err, const t_observer_name&, const t_wildcard_name&);
   t_bool is_tracer_bound(t_err, const t_observer_name&, const t_tracer_name&);
-
-  t_validity fetch_bound_tracers(t_err, const t_observer_name&,
-                                        t_tracer_names&);
+  t_bool fetch_bound_tracers(t_err, const t_observer_name&, t_tracer_names&);
 
 ///////////////////////////////////////////////////////////////////////////////
 

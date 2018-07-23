@@ -125,22 +125,16 @@ namespace tracer
     using t_seq      = named::t_int32;
     using t_impl_id_ = container::freelist::t_id;
 
-    t_id() : seq_(-1), id_(0) {
-    }
-    t_id(const t_id&) = default;
+    t_id();
+    t_id(const t_id&);
 
-    operator t_validity() const  { return seq_ != -1 ? VALID : INVALID; }
+    operator t_validity() const;
 
-    t_id release() {
-      t_id tmp(*this);
-      seq_ = -1;
-      return tmp;
-    }
+    t_id release();
 
   private:
     friend class t_point;
-    t_id(t_seq seq, t_impl_id_ id) : seq_(seq), id_(id) {
-    }
+    t_id(t_seq, t_impl_id_);
 
     t_seq      seq_;
     t_impl_id_ id_;
@@ -161,17 +155,14 @@ namespace tracer
     t_name  get_name () const;
     t_level get_level() const;
 
-    operator t_validity() const { return id_; }
+    operator t_validity() const;
 
   private:
     friend class t_tracer;
     t_point() = default;
     t_point(const t_point&) = default;
-    t_point(const t_id& id, const t_name& name)
-      : id_(id), name_{name} {
-    }
-
-    inline t_point release() { return t_point(id_.release(), name_); }
+    t_point(const t_id&, const t_name&);
+    t_point release();
 
     t_id   id_;
     t_name name_;
@@ -189,21 +180,19 @@ namespace tracer
     t_tracer(const t_tracer&)            = delete;
     t_tracer& operator=(const t_tracer&) = delete;
 
-    inline operator t_validity() const        { return point_;  }
+    operator t_validity() const;
 
-    inline       t_point* operator->()        { return &point_; }
-    inline const t_point* operator->() const  { return &point_; }
+          t_point* operator->();
+    const t_point* operator->() const;
 
-    inline       t_point& operator*()         { return point_; }
-    inline const t_point& operator*() const   { return point_; }
+          t_point& operator*();
+    const t_point& operator*() const;
 
     t_point make_point(const t_name&);
 
   private:
     friend t_tracer mk_(const t_id&, const t_name&);
-    inline
-    t_tracer(const t_id& id, const t_name& name) : point_(id, name) {
-    }
+    t_tracer(const t_id&, const t_name&);
 
     t_point point_;
   };
@@ -223,6 +212,71 @@ namespace tracer
 
 ////////////////////////////////////////////////////////////////////////////////
 
+  inline
+  t_id::t_id() : seq_(-1), id_(0) {
+  }
+
+  inline
+  t_id::operator t_validity() const {
+    return seq_ != -1 ? VALID : INVALID;
+  }
+
+  inline
+  t_id t_id::release() {
+    t_id tmp(*this);
+    seq_ = -1;
+    return tmp;
+  }
+
+  inline
+  t_id::t_id(t_seq seq, t_impl_id_ id) : seq_(seq), id_(id) {
+  }
+
+///////////////////////////////////////////////////////////////////////////////
+
+  inline
+  t_point::operator t_validity() const {
+    return id_;
+  }
+
+  inline
+  t_point::t_point(const t_id& id, const t_name& name) : id_(id), name_{name} {
+  }
+
+  inline
+  t_point t_point::release() {
+    return t_point(id_.release(), name_);
+  }
+
+////////////////////////////////////////////////////////////////////////////////
+
+  inline
+  t_tracer::operator t_validity() const {
+    return point_;
+  }
+
+  inline t_point* t_tracer::operator->() {
+    return &point_;
+  }
+
+  inline
+  const t_point* t_tracer::operator->() const {
+    return &point_;
+  }
+
+  inline
+  t_point& t_tracer::operator*() {
+    return point_;
+  }
+
+  inline
+  const t_point& t_tracer::operator*() const {
+    return point_;
+  }
+
+  inline
+  t_tracer::t_tracer(const t_id& id, const t_name& name) : point_(id, name) {
+  }
 }
 }
 }

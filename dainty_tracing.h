@@ -112,26 +112,13 @@ namespace tracing
   public:
     using t_n = tracing::t_n;
 
-    t_stats()                                             { reset(); }
+    t_stats();
 
-    t_n get      (t_level level) const { return t_n{  used_[level]}; }
-    t_n increment(t_level level)       { return t_n{++used_[level]}; }
+    t_n get      (t_level) const;
+    t_n increment(t_level);
 
-    t_n reset() {
-      t_n_ sum = 0;
-      for (t_n_ i = 0; i < sizeof(used_)/sizeof(t_n_); ++i) {
-        sum += used_[i];
-        used_[i] = 0;
-      }
-      return t_n{sum};
-    }
-
-    t_n total() const {
-      t_n_ sum = 0;
-      for (t_n_ i = 0; i < sizeof(used_)/sizeof(t_n_); ++i)
-        sum += used_[i];
-      return t_n{sum};
-    }
+    t_n reset();
+    t_n total() const;
 
   private:
     using t_n_ = named::t_n_;
@@ -260,6 +247,36 @@ namespace tracing
 
   t_validity fetch_bound_tracers(t_err, const t_observer_name&,
                                         t_tracer_names&);
+
+///////////////////////////////////////////////////////////////////////////////
+
+  t_stats::t_stats() {
+    reset();
+  }
+
+  t_n t_stats::get(t_level level) const {
+    return t_n{used_[level]};
+  }
+
+  t_n t_stats::increment(t_level level) {
+    return t_n{++used_[level]};
+  }
+
+  t_n t_stats::reset() {
+    t_n_ sum = 0;
+    for (t_n_ i = 0; i < sizeof(used_)/sizeof(t_n_); ++i) {
+      sum += used_[i];
+      used_[i] = 0;
+    }
+    return t_n{sum};
+  }
+
+  t_n t_stats::total() const {
+    t_n_ sum = 0;
+    for (t_n_ i = 0; i < sizeof(used_)/sizeof(t_n_); ++i)
+      sum += used_[i];
+    return t_n{sum};
+  }
 
 ///////////////////////////////////////////////////////////////////////////////
 }

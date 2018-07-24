@@ -249,18 +249,22 @@ namespace tracing
 
 ///////////////////////////////////////////////////////////////////////////////
 
+  inline
   t_stats::t_stats() {
     reset();
   }
 
+  inline
   t_n t_stats::get(t_level level) const {
     return t_n{used_[level]};
   }
 
+  inline
   t_n t_stats::increment(t_level level) {
     return t_n{++used_[level]};
   }
 
+  inline
   t_n t_stats::reset() {
     t_n_ sum = 0;
     for (t_n_ i = 0; i < sizeof(used_)/sizeof(t_n_); ++i) {
@@ -270,6 +274,7 @@ namespace tracing
     return t_n{sum};
   }
 
+  inline
   t_n t_stats::total() const {
     t_n_ sum = 0;
     for (t_n_ i = 0; i < sizeof(used_)/sizeof(t_n_); ++i)

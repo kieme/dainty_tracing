@@ -216,6 +216,10 @@ namespace tracer
   }
 
   inline
+  t_id::t_id(const t_id& id) : seq_(id.seq_), id_(id.id_){
+  }
+
+  inline
   t_id::operator t_validity() const {
     return seq_ != -1 ? VALID : INVALID;
   }

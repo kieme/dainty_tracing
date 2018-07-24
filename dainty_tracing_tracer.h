@@ -143,7 +143,12 @@ namespace tracer
 
   class t_point {
   public:
+    t_point() = default;
+    t_point(t_point&&);
+    t_point& operator=(t_point&&);
+
     t_point& operator=(const t_point&) = delete;
+    t_point(const t_point&)            = delete;
 
     t_validity post(       t_level, const t_textline&) const;
     t_validity post(t_err, t_level, const t_textline&) const;
@@ -158,8 +163,6 @@ namespace tracer
 
   private:
     friend class t_tracer;
-    t_point() = default;
-    t_point(const t_point&) = default;
     t_point(const t_id&, const t_name&);
     t_point release();
 
@@ -236,6 +239,18 @@ namespace tracer
   }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+  inline
+  t_point::t_point(t_point&& point)
+    : id_(point.id_.release()), name_(std::move(point.name_)) {
+  }
+
+  inline
+  t_point& t_point::operator=(t_point&& point) { // note: nothing to delete
+    id_   = point.id_.release();
+    name_ = std::move(point.name_);
+    return *this;
+  }
 
   inline
   t_point::operator t_validity() const {

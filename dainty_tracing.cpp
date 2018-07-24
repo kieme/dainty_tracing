@@ -396,6 +396,11 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
+  // tracer   - freelist
+  // observer - freelist
+  // tracer_lk
+  // observer_lk
+
   struct t_data_ {
     t_params params;
 
@@ -456,19 +461,28 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-    virtual t_void async_process(t_user, p_command cmd) noexcept override {
-      printf("thread async command - none is used at this point\n");
-      // not used
+    t_void process_item(t_any&& any) {
+      t_item_& item = any.ref<t_item_>();
+      printf("line = %s", get(item.line.c_str()));
+    }
+
+    t_void process_chain(t_chain& chain) {
+      for (auto item = chain.head; item; item = item->next())
+        process_item(std::move(item->ref()));
     }
 
     virtual t_void async_process(t_chain chain) noexcept override {
-      printf("thread async queue chain received\n");
-      // unpacking of chain/any
+      process_chain(chain);
     }
 
-    t_void process(tracing::t_err err, t_do_chain_cmd_&) noexcept {
-      printf("thread sync queue chain received\n");
-      // work done - release.
+    t_void process(tracing::t_err err, t_do_chain_cmd_& cmd) noexcept {
+      process_chain(cmd.chain);
+      // must release chain
+    }
+
+    virtual t_void async_process(t_user, p_command cmd) noexcept override {
+      printf("thread async command - none is used at this point\n");
+      // not used
     }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -951,28 +965,7 @@ namespace tracer
     t_tracer     shared_tr_;
   };
 
-///////////////////////////////////////////////////////////////////////////////
-
-  std::unique_ptr<t_tracing_> tr_ = nullptr;
-
-  struct automatic_start_ {
-    automatic_start_() {
-      t_err err;
-      if (start(err) == INVALID) {
-        // what to do
-        // XXX - 11
-      }
-    }
-
-    ~automatic_start_() {
-      if (tr_)
-        tr_->clean_death();
-    }
-  };
-
-///////////////////////////////////////////////////////////////////////////////
-
-  automatic_start_ start_;
+  std::unique_ptr<t_tracing_> tr_ = nullptr; // shared_ptr thread safe
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1061,14 +1054,14 @@ namespace tracer
   }
 
   t_tracer& t_tracer::operator=(t_tracer&& tracer) {
-    if (point_ == VALID)
+    if (point_ == VALID && tracing::tr_)
       tracing::tr_->destroy_tracer(point_.id_.release());
     point_.id_ = tracer.point_.id_.release();
     return *this;
   }
 
   t_tracer::~t_tracer() {
-    if (point_ == VALID)
+    if (point_ == VALID && tracing::tr_)
       tracing::tr_->destroy_tracer(point_.id_.release());
   }
 
@@ -1124,13 +1117,13 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_validity start(t_err err) {
+  t_validity start(t_err err, const t_params* params) {
     T_ERR_GUARD(err) {
       static t_mutex_lock lock(err);
       <% auto scope = lock.make_locked_scope(err);
         if (scope == VALID) {
           if (!tr_) {
-            tr_.reset(new t_tracing_{err, t_params{}});
+            tr_.reset(new t_tracing_{err, params ? *params : t_params{}});
             if (err)
               delete tr_.release();
           }
@@ -1139,6 +1132,13 @@ namespace tracer
       %>
     }
     return INVALID;
+  }
+
+  t_void destroy() {
+    if (tr_) {
+      tr_->clean_death();
+      delete tr_.release();
+    }
   }
 
   t_bool is_running() {
@@ -1327,6 +1327,25 @@ namespace tracer
     }
     return false;
   }
+
+///////////////////////////////////////////////////////////////////////////////
+
+  struct automatic_start_ {
+    automatic_start_() {
+      t_err err;
+      if (start(err) == INVALID) {
+        // what to do
+        // XXX - 11
+      }
+    }
+
+    ~automatic_start_() {
+      if (tr_)
+        destroy();
+    }
+  };
+
+  automatic_start_ start_;
 
 ///////////////////////////////////////////////////////////////////////////////
 }

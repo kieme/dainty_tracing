@@ -170,42 +170,51 @@ namespace tracing
 
   class t_params {
   public:
+    const t_n   queuesize;
+    const t_n   max_tracers;
+    const t_n   max_observers;
     t_bool      to_terminal;
     t_bool      to_observers;
     t_time_mode time_mode;
     t_mode      mode;
     t_n         textline_len;
-    const t_n   queuesize;
 
-    t_params() : to_terminal (true),
-                 to_observers(true),
-                 time_mode   (DATE),
-                 mode        (CONFIG),
-                 textline_len(100),
-                 queuesize   (4000) {
+    t_params() : queuesize    (4000),
+                 max_tracers  (100),
+                 max_observers(10),
+                 to_terminal  (true),
+                 to_observers (true),
+                 time_mode    (DATE),
+                 mode         (CONFIG),
+                 textline_len (100) {
     }
 
-    t_params(t_bool      _to_terminal,
+    t_params(t_n         _queuesize,
+             t_n         _max_tracers,
+             t_n         _max_observers,
+             t_bool      _to_terminal,
              t_bool      _to_observers,
              t_time_mode _time_mode,
              t_mode      _mode,
-             t_n         _textline_len,
-             t_n         _queuesize)
-      : to_terminal (_to_terminal),
-        to_observers(_to_observers),
-        time_mode   (_time_mode),
-        mode        (_mode),
-        textline_len(_textline_len),
-        queuesize   (_queuesize) {
+             t_n         _textline_len)
+      : queuesize    (_queuesize),
+        max_tracers  (_max_tracers),
+        max_observers(_max_observers),
+        to_terminal  (_to_terminal),
+        to_observers (_to_observers),
+        time_mode    (_time_mode),
+        mode         (_mode),
+        textline_len (_textline_len) {
     }
   };
 
 ///////////////////////////////////////////////////////////////////////////////
 
   t_bool     is_running();
-  t_validity start (t_err);
-  t_validity update(t_err, const t_params&);
-  t_validity fetch (t_err, t_params&);
+  t_validity start  (t_err, const t_params* = nullptr);
+  t_void     destroy();
+  t_validity update (t_err, const t_params&);
+  t_validity fetch  (t_err, t_params&);
 
 ///////////////////////////////////////////////////////////////////////////////
 

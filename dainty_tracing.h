@@ -45,7 +45,6 @@ namespace tracing
   using tracer::VALID;
   using tracer::INVALID;
   using tracer::FMT;
-  using tracer::NONE;
   using tracer::EMERG;
   using tracer::ALERT;
   using tracer::CRITICAL;
@@ -70,9 +69,9 @@ namespace tracing
 ///////////////////////////////////////////////////////////////////////////////
 
   enum t_output {
-    SHM,
-    LOGGER,
-    FTRACE
+    LOGGER = 0,
+    FTRACE,
+    SHM
   };
 
   enum  t_output_name_tag_ { };
@@ -83,7 +82,7 @@ namespace tracing
 ///////////////////////////////////////////////////////////////////////////////
 
   enum t_time_mode {
-    NS,
+    NS = 0,
     NS_DIFF,
     DATE
   };
@@ -163,6 +162,7 @@ namespace tracing
   };
 
   using t_tracer_names   = std::vector<t_tracer_name>;
+  using t_observer_names = std::vector<t_observer_name>;
   using t_observer_infos = std::vector<t_observer_info>;
   using t_tracer_infos   = std::vector<t_tracer_info>;
 
@@ -244,7 +244,8 @@ namespace tracing
   t_bool   bind_tracers (t_err, const t_observer_name&, const t_wildcard_name&);
   t_bool unbind_tracers (t_err, const t_observer_name&, const t_wildcard_name&);
   t_bool is_tracer_bound(t_err, const t_observer_name&, const t_tracer_name&);
-  t_bool fetch_bound_tracers(t_err, const t_observer_name&, t_tracer_names&);
+  t_bool fetch_bound_tracers  (t_err, const t_observer_name&, t_tracer_names&);
+  t_bool fetch_bound_observers(t_err, const t_tracer_name&, t_observer_names&);
 
 ///////////////////////////////////////////////////////////////////////////////
 

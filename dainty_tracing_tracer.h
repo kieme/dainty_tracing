@@ -81,7 +81,6 @@ namespace tracer
 ///////////////////////////////////////////////////////////////////////////////
 
   enum t_level {
-    NONE     = -1,
     EMERG    = 0,
     ALERT    = 1,
     CRITICAL = 2,
@@ -132,6 +131,7 @@ namespace tracer
     t_id release();
 
   private:
+    friend t_bool operator==(const t_id&, const t_id&);
     friend class t_point;
     t_id(t_seq, t_impl_id_);
 

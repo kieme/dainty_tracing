@@ -28,14 +28,17 @@
 #include "dainty_mt_command.h"
 #include "dainty_mt_thread.h"
 #include "dainty_os_threading.h"
+#include "dainty_os_clock.h"
 #include "dainty_tracing.h"
 
 using namespace dainty::container;
 using namespace dainty::named;
 using namespace dainty::mt;
+using namespace dainty::os;
 
 using dainty::container::any::t_any;
 using dainty::os::threading::t_mutex_lock;
+using dainty::os::clock::t_time;
 using dainty::mt::thread::t_thread;
 using dainty::tracing::tracer::t_id;
 using dainty::tracing::tracer::t_textline;
@@ -69,11 +72,10 @@ namespace tracer
     tracer::t_id    id;
     tracer::t_level level;
     t_textline      line;
-    // XXX - 18
-    // time stamp
-    // cnt
+    t_time          time;
   };
 
+  inline
   t_bool operator==(const t_item& lh, const t_item& rh) {
     return lh.line == rh.line;
   }
@@ -319,7 +321,7 @@ namespace tracer
   struct t_is_tracer_bound_cmd : t_cmd {
     constexpr static command::t_id cmd_id = 19;
     const t_observer_name& name;
-    const t_tracer_name& tracer_name;
+    const t_tracer_name&   tracer_name;
           t_bool&          found;
 
     inline
@@ -334,7 +336,7 @@ namespace tracer
   struct t_fetch_bound_tracers_cmd : t_cmd {
     constexpr static command::t_id cmd_id = 20;
     const t_observer_name& name;
-          t_tracer_names& tracer_names;
+          t_tracer_names&  tracer_names;
           t_bool&          found;
 
     inline
@@ -346,14 +348,39 @@ namespace tracer
     };
   };
 
-  struct t_destroy_tracer_cmd : t_cmd {
+  struct t_fetch_bound_observers_cmd : t_cmd {
     constexpr static command::t_id cmd_id = 21;
+    const t_tracer_name&    name;
+          t_observer_names& observer_names;
+          t_bool&           found;
+
+    inline
+    t_fetch_bound_observers_cmd(const t_tracer_name& _name,
+                                      t_observer_names& _observer_names,
+                                      t_bool& _found)
+      : t_cmd{cmd_id}, name(_name), observer_names(_observer_names),
+        found(_found) {
+    };
+  };
+
+  struct t_destroy_tracer_cmd : t_cmd {
+    constexpr static command::t_id cmd_id = 22;
     const t_id&   id;
           t_bool& done;
 
     inline
     t_destroy_tracer_cmd(const t_id& _id, t_bool& _done)
       : t_cmd{cmd_id}, id(_id), done(_done) {
+    };
+  };
+
+  struct t_do_chain_cmd : t_cmd {
+    constexpr static command::t_id cmd_id = 23;
+    t_que_chain& chain;
+
+    inline
+    t_do_chain_cmd(t_que_chain& _chain)
+      : t_cmd{cmd_id}, chain(_chain) {
     };
   };
 
@@ -403,6 +430,10 @@ namespace tracer
 
     virtual t_void async_process(t_chain chain) noexcept override {
       // unpacking of chain/any
+    }
+
+    t_void process(tracing::t_err err, t_do_chain_cmd&) noexcept {
+      // work done - release.
     }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -487,6 +518,10 @@ namespace tracer
       // work done
     }
 
+    t_void process(tracing::t_err err, t_fetch_bound_observers_cmd&) noexcept {
+      // work done
+    }
+
     t_void process(tracing::t_err err, t_destroy_tracer_cmd&) noexcept {
       // work done
     }
@@ -554,6 +589,15 @@ namespace tracer
         case t_fetch_bound_tracers_cmd::cmd_id:
           process(err, static_cast<t_fetch_bound_tracers_cmd&>(cmd));
           break;
+        case t_fetch_bound_observers_cmd::cmd_id:
+          process(err, static_cast<t_fetch_bound_observers_cmd&>(cmd));
+          break;
+        case t_destroy_tracer_cmd::cmd_id:
+          process(err, static_cast<t_destroy_tracer_cmd&>(cmd));
+          break;
+        case t_do_chain_cmd::cmd_id:
+          process(err, static_cast<t_do_chain_cmd&>(cmd));
+          break;
         default:
           // made a mess
           // XXX- 16
@@ -582,81 +626,6 @@ namespace tracer
         thread_    {err, p_cstr{"tracing"}, &logic_, false},
         shared_tr_ {make_tracer(err, p_cstr{"shared"}, t_tracer_params())} {
     }
-
-///////////////////////////////////////////////////////////////////////////////
-
-    t_validity shared_trace(t_level level, const t_textline& line) {
-      return ref(shared_tr_).post(level, line);
-    }
-
-    t_validity shared_trace(t_err err, t_level level, const t_textline& line) {
-      return ref(shared_tr_).post(err, level, line);
-    }
-
-    t_validity post(const t_id& id, t_level level, const t_textline& line) {
-      t_que_chain chain = que_client_.acquire();
-      if (get(chain.cnt)) {
-        // XXX - 12
-        // XXX- timestamp && level
-        t_item item {};
-        item.line  = line;
-        item.level = level;
-        item.id    = id;
-        chain.head->ref().assign(t_any_user{0L}, std::move(item));
-        return que_client_.insert(chain);
-      }
-      return INVALID;
-    }
-
-    t_validity post(t_err& err, const t_id& id, t_level level,
-                    const t_textline& line) {
-      t_que_chain chain = que_client_.acquire(err);
-      if (!err) {
-        // XXX - 13
-        // XXX- timestamp && level
-        t_item item {};
-        item.line  = line;
-        item.level = level;
-        item.id    = id;
-        chain.head->ref().assign(t_any_user{0L}, std::move(item));
-        return que_client_.insert(err, chain);
-      }
-      return INVALID;
-    }
-
-    t_validity waitable_post(const t_id& id, t_level level,
-                             const t_textline& line) {
-      t_que_chain chain = que_client_.waitable_acquire();
-      if (get(chain.cnt)) {
-        // XXX - 14
-        // XXX- timestamp && level
-        t_item item {};
-        item.line  = line;
-        item.level = level;
-        item.id    = id;
-        chain.head->ref().assign(t_any_user{0L}, std::move(item));
-        return que_client_.insert(chain);
-      }
-      return INVALID;
-    }
-
-    t_validity waitable_post(t_err& err, const t_id& id, t_level level,
-                             const t_textline& line) {
-      t_que_chain chain = que_client_.waitable_acquire(err);
-      if (!err) {
-        // XXX - 15
-        // XXX- timestamp & level
-        t_item item {};
-        item.line  = line;
-        item.level = level;
-        item.id    = id;
-        chain.head->ref().assign(t_any_user{0L}, std::move(item));
-        return que_client_.insert(err, chain);
-      }
-      return INVALID;
-    }
-
-///////////////////////////////////////////////////////////////////////////////
 
     t_tracer_name get_point_name(const t_id& id) {
       t_tracer_name name;
@@ -809,10 +778,98 @@ namespace tracer
       return !err ? found : false;
     }
 
+    t_bool fetch_bound_observers(t_err& err, const t_tracer_name& name,
+                                 t_observer_names& observer_names) {
+      t_bool found = false;
+      t_fetch_bound_observers_cmd cmd(name, observer_names, found);
+      cmd_client_.request(err, cmd);
+      return !err ? found : false;
+    }
+
     t_bool destroy_tracer(tracer::t_id id) {
       t_bool done = false;
       t_destroy_tracer_cmd cmd(id, done);
       return cmd_client_.request(cmd) == VALID ? done : false;
+    }
+
+    t_validity do_chain(t_err& err, t_que_chain& chain) {
+      t_do_chain_cmd cmd(chain);
+      cmd_client_.request(err, cmd);
+      return !err ? VALID : INVALID;
+    }
+
+    t_validity do_chain(t_que_chain& chain) {
+      t_do_chain_cmd cmd(chain);
+      return cmd_client_.request(cmd);
+    }
+
+///////////////////////////////////////////////////////////////////////////////
+
+    t_validity shared_trace(t_level level, const t_textline& line) {
+      return ref(shared_tr_).post(level, line);
+    }
+
+    t_validity shared_trace(t_err err, t_level level, const t_textline& line) {
+      return ref(shared_tr_).post(err, level, line);
+    }
+
+    t_validity post(const t_id& id, t_level level, const t_textline& line) {
+      t_que_chain chain = que_client_.acquire();
+      if (get(chain.cnt)) {
+        t_item& item = chain.head->ref().emplace<t_item>(t_any_user{0L});
+        item.line  = line;
+        item.level = level;
+        item.id    = id;
+        item.time  = clock::realtime_now();
+        return level > CRITICAL ? que_client_.insert(chain) :
+                                  do_chain(chain);
+      }
+      return INVALID;
+    }
+
+    t_validity post(t_err& err, const t_id& id, t_level level,
+                    const t_textline& line) {
+      t_que_chain chain = que_client_.acquire(err);
+      if (!err) {
+        t_item& item = chain.head->ref().emplace<t_item>(t_any_user{0L});
+        item.line  = line;
+        item.level = level;
+        item.id    = id;
+        item.time  = clock::realtime_now();
+        return level > CRITICAL ?  que_client_.insert(err, chain) :
+                                   do_chain(err, chain);
+      }
+      return INVALID;
+    }
+
+    t_validity waitable_post(const t_id& id, t_level level,
+                             const t_textline& line) {
+      t_que_chain chain = que_client_.waitable_acquire();
+      if (get(chain.cnt)) {
+        t_item& item = chain.head->ref().emplace<t_item>(t_any_user{0L});
+        item.line  = line;
+        item.level = level;
+        item.id    = id;
+        item.time  = clock::realtime_now();
+        return level > CRITICAL ?  que_client_.insert(chain) :
+                                   do_chain(chain);
+      }
+      return INVALID;
+    }
+
+    t_validity waitable_post(t_err& err, const t_id& id, t_level level,
+                             const t_textline& line) {
+      t_que_chain chain = que_client_.waitable_acquire(err);
+      if (!err) {
+        t_item& item = chain.head->ref().emplace<t_item>(t_any_user{0L});
+        item.line  = line;
+        item.level = level;
+        item.id    = id;
+        item.time  = clock::realtime_now();
+        return level > CRITICAL ?  que_client_.insert(err, chain) :
+                                   do_chain(err, chain);
+      }
+      return INVALID;
     }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -854,29 +911,34 @@ namespace tracer
 
 namespace tracer
 {
-  t_levelname to_name(t_level) {
-    // XXX - 5
-    return t_levelname();
+  t_levelname to_name(t_level level) {
+    const char* tbl[] = { "emerg",
+                          "alert",
+                          "critical",
+                          "error",
+                          "warning",
+                          "notice",
+                          "info",
+                          "debug" };
+    return p_cstr(tbl[level]);
   }
 
   t_level default_level() {
-    // XXX - 6
-    return NONE;
+    return NOTICE;
   }
 
   t_credit default_credit() {
-    // XXX - 7
-    return 0;
+    return 50;
   }
 
-  t_bool operator==(const t_id&, const t_id&) { //XXX
-    // XXX - 8
-    return false;
+  inline
+  t_bool operator==(const t_id& lh, const t_id& rh) {
+    return lh.seq_ == rh.seq_ && get(lh.id_)  == get(rh.id_);
   }
 
-  t_bool operator!=(const t_id&, const t_id&) { //XXX
-    // XXX - 9
-    return false;
+  inline
+  t_bool operator!=(const t_id& lh, const t_id& rh) {
+    return !(lh == rh);
   }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -923,7 +985,7 @@ namespace tracer
   t_level t_point::get_level() const {
     if (tracing::tr_)
       return tracing::tr_->get_point_level(id_);
-    return NONE;
+    return EMERG;
   }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -968,24 +1030,29 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_output_name to_name(t_output) {
-    // XXX - 1
-    return t_output_name();
+  t_output_name to_name(t_output output) {
+    const char* tbl[] = { "logger",
+                          "ftrace",
+                          "shm" };
+    return p_cstr(tbl[output]);
   }
 
-  t_time_mode_name to_name(t_time_mode) {
-    // XXX - 2
-    return t_time_mode_name();
+  t_time_mode_name to_name(t_time_mode mode) {
+    const char* tbl[] = { "ns",
+                          "ns_diff",
+                          "date" };
+    return p_cstr(tbl[mode]);
   }
 
-  t_mode_name to_name(t_mode) {
-    // XXX - 3
-    return t_mode_name();
+  t_mode_name to_name(t_mode mode) {
+    const char* tbl[] = { "all",
+                          "off",
+                          "config" };
+    return p_cstr(tbl[mode]);
   }
 
   t_level default_observer_level() {
-    // XXX - 4
-    return NONE;
+    return NOTICE;
   }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1183,6 +1250,15 @@ namespace tracer
     T_ERR_GUARD(err) {
       if (tracing::tr_)
         return tracing::tr_->fetch_bound_tracers(err, name, tracer_names);
+    }
+    return false;
+  }
+
+  t_bool fetch_bound_observers(t_err err, const t_tracer_name& name,
+                               t_observer_names& observer_names) {
+    T_ERR_GUARD(err) {
+      if (tracing::tr_)
+        return tracing::tr_->fetch_bound_observers(err, name, observer_names);
     }
     return false;
   }

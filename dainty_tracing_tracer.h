@@ -60,7 +60,6 @@ namespace tracing
 namespace tracer
 {
   using named::string::t_string;
-  using named::p_cstr_;
   using named::t_void;
   using named::t_bool;
   using named::t_validity;
@@ -74,9 +73,11 @@ namespace tracer
 
   enum  t_name_tag_ {};
   using t_name = t_string<t_name_tag_, 32>;
+  using R_name = named::t_prefix<t_name>::R_;
 
   enum  t_textline_tag_ {};
   using t_textline = t_string<t_textline_tag_, 80>;
+  using R_textline = named::t_prefix<t_textline>::R_;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -116,6 +117,9 @@ namespace tracer
     }
   };
 
+  using r_params = named::t_prefix<t_params>::r_;
+  using R_params = named::t_prefix<t_params>::R_;
+
 ///////////////////////////////////////////////////////////////////////////////
 
   class t_id {
@@ -139,6 +143,8 @@ namespace tracer
     t_impl_id_ id_;
   };
 
+  using R_id = named::t_prefix<t_id>::R_;
+
 ///////////////////////////////////////////////////////////////////////////////
 
   class t_point {
@@ -150,11 +156,11 @@ namespace tracer
     t_point& operator=(const t_point&) = delete;
     t_point(const t_point&)            = delete;
 
-    t_validity post(       t_level, const t_textline&) const;
-    t_validity post(t_err, t_level, const t_textline&) const;
+    t_validity post(       t_level, R_textline) const;
+    t_validity post(t_err, t_level, R_textline) const;
 
-    t_validity waitable_post(       t_level, const t_textline&) const;
-    t_validity waitable_post(t_err, t_level, const t_textline&) const;
+    t_validity waitable_post(       t_level, R_textline) const;
+    t_validity waitable_post(t_err, t_level, R_textline) const;
 
     t_name  get_name () const;
     t_level get_level() const;
@@ -163,12 +169,18 @@ namespace tracer
 
   private:
     friend class t_tracer;
-    t_point(const t_id&, const t_name&);
+    t_point(R_id, R_name);
     t_point release();
 
     t_id   id_;
     t_name name_;
   };
+
+  using r_point = named::t_prefix<t_point>::r_;
+  using R_point = named::t_prefix<t_point>::R_;
+  using p_point = named::t_prefix<t_point>::p_;
+  using P_point = named::t_prefix<t_point>::P_;
+  using x_point = named::t_prefix<t_point>::x_;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -184,33 +196,37 @@ namespace tracer
 
     operator t_validity() const;
 
-          t_point* operator->();
-    const t_point* operator->() const;
+    p_point operator->();
+    P_point operator->() const;
 
-          t_point& operator*();
-    const t_point& operator*() const;
+    r_point operator*();
+    R_point operator*() const;
 
-    t_point make_point(const t_name&);
+    t_point make_point(R_name);
 
   private:
-    friend t_tracer mk_(const t_id&, const t_name&);
-    t_tracer(const t_id&, const t_name&);
+    friend t_tracer mk_(R_id, R_name);
+    t_tracer(R_id, R_name);
 
     t_point point_;
   };
 
+  using r_tracer = named::t_prefix<t_tracer>::r_;
+  using R_tracer = named::t_prefix<t_tracer>::R_;
+  using x_tracer = named::t_prefix<t_tracer>::x_;
+
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_validity shared_trace(       t_level, const t_textline&);
-  t_validity shared_trace(t_err, t_level, const t_textline&);
+  t_validity shared_trace(       t_level, R_textline);
+  t_validity shared_trace(t_err, t_level, R_textline);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-  inline       t_point& ref(      t_point& point)  { return point; }
-  inline const t_point& ref(const t_point& point)  { return point; }
+  inline r_point ref(r_point point)   { return point; }
+  inline R_point ref(R_point point)   { return point; }
 
-  inline       t_point& ref(      t_tracer& point) { return *point;}
-  inline const t_point& ref(const t_tracer& point) { return *point;}
+  inline r_point ref(r_tracer tracer) { return *tracer;}
+  inline R_point ref(R_tracer tracer) { return *tracer;}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -219,7 +235,7 @@ namespace tracer
   }
 
   inline
-  t_id::t_id(const t_id& id) : seq_(id.seq_), id_(id.id_){
+  t_id::t_id(R_id id) : seq_(id.seq_), id_(id.id_){
   }
 
   inline
@@ -241,12 +257,12 @@ namespace tracer
 ///////////////////////////////////////////////////////////////////////////////
 
   inline
-  t_point::t_point(t_point&& point)
+  t_point::t_point(x_point point)
     : id_(point.id_.release()), name_(std::move(point.name_)) {
   }
 
   inline
-  t_point& t_point::operator=(t_point&& point) { // note: nothing to delete
+  t_point& t_point::operator=(x_point point) { // note: nothing to delete
     id_   = point.id_.release();
     name_ = std::move(point.name_);
     return *this;
@@ -258,7 +274,7 @@ namespace tracer
   }
 
   inline
-  t_point::t_point(const t_id& id, const t_name& name) : id_(id), name_{name} {
+  t_point::t_point(R_id id, R_name name) : id_(id), name_{name} {
   }
 
   inline
@@ -273,27 +289,28 @@ namespace tracer
     return point_;
   }
 
-  inline t_point* t_tracer::operator->() {
+  inline
+  p_point t_tracer::operator->() {
     return &point_;
   }
 
   inline
-  const t_point* t_tracer::operator->() const {
+  P_point t_tracer::operator->() const {
     return &point_;
   }
 
   inline
-  t_point& t_tracer::operator*() {
+  r_point t_tracer::operator*() {
     return point_;
   }
 
   inline
-  const t_point& t_tracer::operator*() const {
+  R_point t_tracer::operator*() const {
     return point_;
   }
 
   inline
-  t_tracer::t_tracer(const t_id& id, const t_name& name) : point_(id, name) {
+  t_tracer::t_tracer(R_id id, R_name name) : point_(id, name) {
   }
 }
 }

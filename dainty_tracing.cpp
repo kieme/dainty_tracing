@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 #include <memory>
+#include "dainty_mt_event_dispatcher.h"
 #include "dainty_mt_waitable_chained_queue.h"
 #include "dainty_mt_command.h"
 #include "dainty_mt_thread.h"
@@ -43,6 +44,7 @@ using dainty::container::any::t_any;
 using dainty::os::threading::t_mutex_lock;
 using dainty::os::clock::t_time;
 using dainty::mt::thread::t_thread;
+using dainty::mt::event_dispatcher::t_dispatcher;
 
 using t_thd_err       = t_thread::t_logic::t_err;
 using t_cmd_err       = command::t_processor::t_logic::t_err;
@@ -53,7 +55,6 @@ using t_any_user      = any::t_user;
 using t_que_chain     = waitable_chained_queue::t_chain;
 using t_que_client    = waitable_chained_queue::t_client;
 using t_que_processor = waitable_chained_queue::t_processor;
-
 
 namespace dainty
 {
@@ -399,12 +400,14 @@ namespace tracer
 
   class t_logic_ : public t_thread::t_logic,
                    public t_cmd_processor::t_logic,
-                   public t_que_processor::t_logic {
+                   public t_que_processor::t_logic,
+                   public t_event_dispatcher::t_logic {
   public:
     t_logic_(tracing::t_err err, R_params params)
       : data_{params},
         cmd_processor_{err},
-        que_processor_{err, data_.params.queuesize} {
+        que_processor_{err, data_.params.queuesize},
+        dispatcher_   {err, {t_n{2}, "epoll_service"}} {
     }
 
     t_cmd_client make_cmd_client() {
@@ -433,10 +436,9 @@ namespace tracer
 
       tracing::t_err err;
 
-      do {
-        // XXX - 17 - event_loop
-        cmd_processor_.process(err, *this);
-      } while (!err && !die_);
+      dispatcher_.add_event (err, cmd_processor_.get_fd(), this);
+      dispatcher_.add_event (err, que_processor_.get_fd(), this);
+      dispatcher_.event_loop(err);
 
       if (err) {
         err.print();
@@ -444,6 +446,20 @@ namespace tracer
       }
 
       return nullptr;
+    }
+
+///////////////////////////////////////////////////////////////////////////////
+
+    virtual t_void may_reorder_events (r_event_infos) override {
+    }
+
+    virtual t_void notify_event_remove(r_event_info) override {
+    }
+
+    virtual t_quit notify_timeout(t_microseconds) override {
+    }
+
+    virtual t_quit notify_error(t_errno)  override {
     }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -678,6 +694,7 @@ namespace tracer
     t_data_         data_;
     t_cmd_processor cmd_processor_;
     t_que_processor que_processor_;
+    t_dispatcher    dispatcher_;
   };
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -43,11 +43,11 @@ using namespace dainty::tracing::tracer;
 using dainty::container::any::t_any;
 using dainty::os::threading::t_mutex_lock;
 using dainty::os::clock::t_time;
+
 using dainty::mt::thread::t_thread;
 using dainty::mt::event_dispatcher::t_dispatcher;
 using dainty::mt::event_dispatcher::t_event_logic;
 using dainty::mt::event_dispatcher::t_action;
-
 using dainty::mt::event_dispatcher::CONTINUE;
 using dainty::mt::event_dispatcher::QUIT_EVENT_LOOP;
 using dainty::mt::event_dispatcher::RD;
@@ -532,6 +532,7 @@ namespace tracer
     t_void process(tracing::t_err err, t_make_tracer_cmd_&) noexcept {
       printf("thread make_tracer_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_update_tracer_cmd_&) noexcept {

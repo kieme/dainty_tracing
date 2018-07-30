@@ -45,6 +45,8 @@ using dainty::os::threading::t_mutex_lock;
 using dainty::os::clock::t_time;
 using dainty::mt::thread::t_thread;
 using dainty::mt::event_dispatcher::t_dispatcher;
+using dainty::mt::event_dispatcher::t_event_logic;
+using dainty::mt::event_dispatcher::RD;
 
 using t_thd_err       = t_thread::t_logic::t_err;
 using t_cmd_err       = command::t_processor::t_logic::t_err;
@@ -401,10 +403,10 @@ namespace tracer
   class t_logic_ : public t_thread::t_logic,
                    public t_cmd_processor::t_logic,
                    public t_que_processor::t_logic,
-                   public t_event_dispatcher::t_logic {
+                   public t_dispatcher::t_logic {
   public:
     t_logic_(tracing::t_err err, R_params params)
-      : data_{params},
+      : data_         {params},
         cmd_processor_{err},
         que_processor_{err, data_.params.queuesize},
         dispatcher_   {err, {t_n{2}, "epoll_service"}} {
@@ -436,9 +438,13 @@ namespace tracer
 
       tracing::t_err err;
 
-      dispatcher_.add_event (err, cmd_processor_.get_fd(), this);
-      dispatcher_.add_event (err, que_processor_.get_fd(), this);
-      dispatcher_.event_loop(err);
+      t_cmd_proxy_ cmd_proxy{err, cmd_processor_, *this};
+      dispatcher_.add_event (err, {cmd_processor_.get_fd(), RD}, &cmd_proxy);
+
+      t_que_proxy_ que_proxy{err, que_processor_, *this};
+      dispatcher_.add_event (err, {que_processor_.get_fd(), RD}, &que_proxy);
+
+      dispatcher_.event_loop(err, this);
 
       if (err) {
         err.print();
@@ -457,9 +463,11 @@ namespace tracer
     }
 
     virtual t_quit notify_timeout(t_microseconds) override {
+      return true;
     }
 
     virtual t_quit notify_error(t_errno)  override {
+      return true;
     }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -690,6 +698,50 @@ namespace tracer
 ///////////////////////////////////////////////////////////////////////////////
 
   private:
+    class t_cmd_proxy_ : public t_event_logic {
+    public:
+      t_cmd_proxy_(tracing::t_err& err, t_cmd_processor& processor,
+                   t_cmd_processor::t_logic& logic)
+        : err_(err), processor_(processor), logic_{logic} {
+      }
+
+      virtual t_name get_name() const override {
+        return {"cmd logic"};
+      }
+
+      virtual t_action notify_event(r_event_params params) override {
+        processor_.process(err_, logic_);
+        return {}; // quit
+      }
+
+    private:
+      tracing::t_err&           err_;
+      t_cmd_processor&          processor_;
+      t_cmd_processor::t_logic& logic_;
+    };
+
+    class t_que_proxy_ : public t_event_logic {
+    public:
+      t_que_proxy_(tracing::t_err& err, t_que_processor& processor,
+                   t_que_processor::t_logic& logic)
+        : err_(err), processor_(processor), logic_{logic} {
+      }
+
+      virtual t_name get_name() const override {
+        return {"queue logic"};
+      }
+
+      virtual t_action notify_event(r_event_params params) override {
+        processor_.process(err_, logic_);
+        return {};
+      }
+
+    private:
+      tracing::t_err&           err_;
+      t_que_processor&          processor_;
+      t_que_processor::t_logic& logic_;
+    };
+
     t_bool          die_ = false;
     t_data_         data_;
     t_cmd_processor cmd_processor_;

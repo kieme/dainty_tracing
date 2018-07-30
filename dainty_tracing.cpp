@@ -43,7 +43,6 @@ using namespace dainty::tracing::tracer;
 using dainty::container::any::t_any;
 using dainty::os::threading::t_mutex_lock;
 using dainty::os::clock::t_time;
-
 using dainty::mt::thread::t_thread;
 using dainty::mt::event_dispatcher::t_dispatcher;
 using dainty::mt::event_dispatcher::t_event_logic;
@@ -53,12 +52,10 @@ using dainty::mt::event_dispatcher::QUIT_EVENT_LOOP;
 using dainty::mt::event_dispatcher::RD;
 
 using t_thd_err       = t_thread::t_logic::t_err;
-
 using t_cmd_err       = command::t_processor::t_logic::t_err;
 using t_cmd_client    = command::t_client;
 using t_cmd_processor = command::t_processor;
 using t_cmd           = command::t_command;
-
 using t_any_user      = any::t_user;
 using t_que_chain     = waitable_chained_queue::t_chain;
 using t_que_client    = waitable_chained_queue::t_client;
@@ -489,6 +486,7 @@ namespace tracer
     }
 
     virtual t_void async_process(t_chain chain) noexcept override {
+      printf("recv a trace\n");
       process_chain(chain);
       action_.cmd = CONTINUE;
     }

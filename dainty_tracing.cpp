@@ -46,13 +46,19 @@ using dainty::os::clock::t_time;
 using dainty::mt::thread::t_thread;
 using dainty::mt::event_dispatcher::t_dispatcher;
 using dainty::mt::event_dispatcher::t_event_logic;
+using dainty::mt::event_dispatcher::t_action;
+
+using dainty::mt::event_dispatcher::CONTINUE;
+using dainty::mt::event_dispatcher::QUIT_EVENT_LOOP;
 using dainty::mt::event_dispatcher::RD;
 
 using t_thd_err       = t_thread::t_logic::t_err;
+
 using t_cmd_err       = command::t_processor::t_logic::t_err;
 using t_cmd_client    = command::t_client;
 using t_cmd_processor = command::t_processor;
 using t_cmd           = command::t_command;
+
 using t_any_user      = any::t_user;
 using t_que_chain     = waitable_chained_queue::t_chain;
 using t_que_client    = waitable_chained_queue::t_client;
@@ -438,10 +444,10 @@ namespace tracer
 
       tracing::t_err err;
 
-      t_cmd_proxy_ cmd_proxy{err, cmd_processor_, *this};
+      t_cmd_proxy_ cmd_proxy{err, action_, cmd_processor_, *this};
       dispatcher_.add_event (err, {cmd_processor_.get_fd(), RD}, &cmd_proxy);
 
-      t_que_proxy_ que_proxy{err, que_processor_, *this};
+      t_que_proxy_ que_proxy{err, action_, que_processor_, *this};
       dispatcher_.add_event (err, {que_processor_.get_fd(), RD}, &que_proxy);
 
       dispatcher_.event_loop(err, this);
@@ -484,38 +490,43 @@ namespace tracer
 
     virtual t_void async_process(t_chain chain) noexcept override {
       process_chain(chain);
-    }
-
-    t_void process(tracing::t_err err, t_do_chain_cmd_& cmd) noexcept {
-      process_chain(cmd.chain);
-      // must release chain
+      action_.cmd = CONTINUE;
     }
 
     virtual t_void async_process(t_user, p_command cmd) noexcept override {
       printf("thread async command - none is used at this point\n");
       // not used
+      action_.cmd = CONTINUE;
     }
 
 ///////////////////////////////////////////////////////////////////////////////
 
+    t_void process(tracing::t_err err, t_do_chain_cmd_& cmd) noexcept {
+      process_chain(cmd.chain);
+    }
+
     t_void process(tracing::t_err err, t_update_params_cmd_&) noexcept {
       printf("thread update_params_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_params_cmd_&) noexcept {
       printf("thread fetch_params_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_get_point_name_cmd_&) noexcept {
       printf("thread get_point_name_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_get_point_level_cmd_&) noexcept {
       printf("thread get_point_level_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_make_tracer_cmd_&) noexcept {
@@ -526,26 +537,31 @@ namespace tracer
     t_void process(tracing::t_err err, t_update_tracer_cmd_&) noexcept {
       printf("thread update_tracer_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_update_tracer_params_cmd_&) noexcept {
       printf("thread update_tracer_params_cmd received\n");
+      action_.cmd = CONTINUE;
       // work done
     }
 
     t_void process(tracing::t_err err, t_fetch_tracer_params_cmd_&) noexcept {
       printf("thread fetch_tracer_params_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_tracer_info_cmd_&) noexcept {
       printf("thread fetch_tracer_info_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_tracers_cmd_&) noexcept {
       printf("thread fetch_tracers_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_create_observer_cmd_&) noexcept {
@@ -556,21 +572,25 @@ namespace tracer
     t_void process(tracing::t_err err, t_destroy_observer_cmd_&) noexcept {
       printf("thread destroy_observer_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_update_observer_cmd_&) noexcept {
       printf("thread update_observer_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_observer_cmd_&) noexcept {
       printf("thread fetch_observer_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_observer_info_cmd_&) noexcept {
       printf("thread fetch_observer_info_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_observers_cmd_&) noexcept {
@@ -581,36 +601,42 @@ namespace tracer
     t_void process(tracing::t_err err, t_bind_tracers_cmd_&) noexcept {
       printf("thread bind_tracers_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_unbind_tracers_cmd_&) noexcept {
       printf("thread unbind_tracers_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_is_tracer_bound_cmd_&) noexcept {
       printf("thread is_tracer_bound_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_bound_tracers_cmd_&) noexcept {
       printf("thread fetch_bound_tracers_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_bound_observers_cmd_&) noexcept {
       printf("thread fetch_bound_observers_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_destroy_tracer_cmd_&) noexcept {
       printf("thread destroy_tracer_cmd received\n");
       // work done
+      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_clean_death_cmd_&) noexcept {
       printf("thread clean_death_cmd received\n");
-      die_ = true;
+      action_.cmd = QUIT_EVENT_LOOP;
     }
 
     virtual t_void process(t_cmd_err err, t_user,
@@ -700,9 +726,9 @@ namespace tracer
   private:
     class t_cmd_proxy_ : public t_event_logic {
     public:
-      t_cmd_proxy_(tracing::t_err& err, t_cmd_processor& processor,
-                   t_cmd_processor::t_logic& logic)
-        : err_(err), processor_(processor), logic_{logic} {
+      t_cmd_proxy_(tracing::t_err& err, t_action& action,
+                   t_cmd_processor& processor, t_cmd_processor::t_logic& logic)
+        : err_(err), action_(action), processor_(processor), logic_{logic} {
       }
 
       virtual t_name get_name() const override {
@@ -711,20 +737,21 @@ namespace tracer
 
       virtual t_action notify_event(r_event_params params) override {
         processor_.process(err_, logic_);
-        return {}; // quit
+        return action_;
       }
 
     private:
       tracing::t_err&           err_;
+      t_action&                 action_;
       t_cmd_processor&          processor_;
       t_cmd_processor::t_logic& logic_;
     };
 
     class t_que_proxy_ : public t_event_logic {
     public:
-      t_que_proxy_(tracing::t_err& err, t_que_processor& processor,
-                   t_que_processor::t_logic& logic)
-        : err_(err), processor_(processor), logic_{logic} {
+      t_que_proxy_(tracing::t_err& err, t_action& action,
+                   t_que_processor& processor, t_que_processor::t_logic& logic)
+        : err_(err), action_(action), processor_(processor), logic_{logic} {
       }
 
       virtual t_name get_name() const override {
@@ -733,16 +760,17 @@ namespace tracer
 
       virtual t_action notify_event(r_event_params params) override {
         processor_.process(err_, logic_);
-        return {};
+        return action_;
       }
 
     private:
       tracing::t_err&           err_;
+      t_action&                 action_;
       t_que_processor&          processor_;
       t_que_processor::t_logic& logic_;
     };
 
-    t_bool          die_ = false;
+    t_action        action_;
     t_data_         data_;
     t_cmd_processor cmd_processor_;
     t_que_processor que_processor_;

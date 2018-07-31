@@ -171,7 +171,6 @@ namespace tracing
 
   class t_tracer_info {
   public:
-    t_tracer_id     id;
     t_tracer_name   name;
     t_tracer_params params;
     t_stats         stats;

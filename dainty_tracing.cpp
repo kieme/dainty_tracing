@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <memory>
 #include <map>
+#include <algorithm>
 #include "dainty_mt_event_dispatcher.h"
 #include "dainty_mt_waitable_chained_queue.h"
 #include "dainty_mt_command.h"
@@ -106,6 +107,7 @@ namespace tracer
 
   using p_observer_impl_  = named::t_prefix<t_observer_impl_>::p_;
   using t_observer_impls_ = std::vector<p_observer_impl_>;
+  using p_observer_impls_ = named::t_prefix<t_observer_impls_>::p_;
 
   class t_observer_logger_impl_ : t_observer_impl_ {
   public:
@@ -417,91 +419,140 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  class t_data_ {
+  class t_data_ { // t_err should be r_err
   public:
-    struct t_tracer_data_ {
+    using r_err = named::t_prefix<tracing::t_err>::r_;
+
+    struct t_tracer_ {
       t_tracer_info     info;
-      t_observer_impls_ observer_impls;
+      p_observer_impls_ impls;
     };
 
-    struct t_tracer_lk_data_ {
-      p_tracer_info     info;
-      t_observer_impls_ observer_impls;
+    using p_tracer_ = named::t_prefix<t_tracer_>::p_;
+
+    struct t_tracer_lk_ {
+      p_tracer_         data = nullptr;
+      t_observer_impls_ impls;
     };
 
-    struct t_observer_data_ {
+    struct t_observer_ {
       t_observer_info  info;
-      p_observer_impl_ observer_impl;
+      p_observer_impl_ impl = nullptr;
     };
 
     t_params params;
 
     t_data_(R_params _params)
-      : params{_params}, tracers_{params.max_tracers} {
+      : params{_params}, freelist_{params.max_tracers} {
     }
 
-    t_tracer_id add_tracer(t_err, R_tracer_name, R_tracer_params) {
+    t_tracer_id add_tracer(r_err err, R_tracer_name name,
+                           R_tracer_params params) {
       return t_tracer_id{};
     }
 
-    t_validity update_tracer(t_err, R_tracer_name, R_tracer_params) {
+    t_validity update_tracer(r_err err, R_tracer_name name,
+                             R_tracer_params params) {
       return INVALID;
     }
 
-    t_bool update_tracer(t_err, R_wildcard_name, t_level) {
+    t_bool update_tracer(r_err err, R_wildcard_name, t_level) {
       return false;
     }
 
-    t_validity del_tracer(t_tracer_id) {
+    t_validity del_tracer(t_tracer_id id) {
       return INVALID;
     }
 
-    t_tracer_data_* is_tracer(R_tracer_name) const {
+    t_tracer_* is_tracer(R_tracer_name name) {
       return nullptr;
     }
 
-    t_validity add_observer(t_err, R_observer_name _name,
-                            R_observer_params, p_observer_impl_) {
-      return INVALID;
-    }
-
-    t_validity update_observer(t_err, R_observer_name _name,
-                               R_observer_params, p_observer_impl_) {
-      return INVALID;
-    }
-
-    t_validity del_observer(R_observer_name) {
-      return INVALID;
-    }
-
-    t_observer_data_* is_observer(R_observer_name) {
+    t_tracer_* is_tracer(t_tracer_id id) {
       return nullptr;
     }
 
-    t_validity bind_tracer(t_err, R_observer_name, R_wildcard_name) {
+    t_validity add_observer(r_err err, R_observer_name name,
+                            R_observer_params params, p_observer_impl_ impl) {
+      auto entry = observers_.insert(t_observers_::value_type(name,
+                                                              t_observer_()));
+      if (entry.second) {
+        entry.first->second.info.name   = name;
+        entry.first->second.info.params = params;
+        entry.first->second.impl        = impl;
+        return VALID;
+      }
       return INVALID;
     }
 
-    t_validity unbind_tracer(t_err, R_observer_name, R_wildcard_name) {
+    t_validity update_observer(r_err err, R_observer_name name,
+                               R_observer_params params,
+                               p_observer_impl_ impl) {
+      auto entry = observers_.find(name);
+      if (entry != std::cend(observers_)) {
+        entry->second.info.name   = name;
+        entry->second.info.params = params;
+        entry->second.impl        = impl;
+        return VALID;
+      }
       return INVALID;
     }
 
-    t_bool fetch_bound_tracers(t_err, R_observer_name, r_tracer_names) {
+    p_observer_impl_ del_observer(R_observer_name name) {
+      p_observer_impl_ impl = nullptr;
+      auto entry = observers_.find(name);
+      if (entry != std::cend(observers_)) {
+        impl = entry->second.impl;
+        for (auto&& tracer_name : entry->second.info.tracers) {
+          auto tracer = tracers_.find(tracer_name);
+          if (tracer != std::cend(tracers_)) {
+            tracer->second.impls.erase(
+              std::find(std::begin(tracer->second.impls),
+                        std::end  (tracer->second.impls), impl));
+            if (tracer->second.impls.empty() && !tracer->second.data) {
+              // tracer can be deleted
+            }
+          }
+        }
+      }
+      return impl;
+    }
+
+    t_observer_* is_observer(R_observer_name name) {
+      auto entry = observers_.find(name);
+      if (entry != std::cend(observers_))
+        return &entry->second;
+      return nullptr;
+    }
+
+    t_validity bind_tracer(r_err err, R_observer_name name,
+                           R_wildcard_name wildcard_name) {
+      return INVALID;
+    }
+
+    t_validity unbind_tracer(r_err err, R_observer_name name,
+                             R_wildcard_name wildcard_name) {
+      return INVALID;
+    }
+
+    t_bool fetch_bound_tracers(r_err, R_observer_name name,
+                               r_tracer_names tracer_names) {
       return false;
     }
 
-    t_bool fetch_bound_observers(t_err, R_tracer_name, r_observer_names) {
+    t_bool fetch_bound_observers(r_err err, R_tracer_name name,
+                                 r_observer_names observer_names) {
       return false;
     }
 
   private:
-    using t_tracers_    = freelist::t_freelist<t_tracer_data_>;
-    using t_tracers_lk_ = std::map<t_tracer_name, t_tracer_lk_data_>;
-    using t_observers_  = std::map<t_observer_name, t_observer_data_>;
+    using t_freelist_  = freelist::t_freelist<t_tracer_>;
+    using t_tracers_   = std::map<t_tracer_name, t_tracer_lk_>;
+    using t_observers_ = std::map<t_observer_name, t_observer_>;
 
-    t_tracers_      tracers_;
-    t_tracers_lk_   tracers_lk_;
-    t_observers_    observers_;
+    t_freelist_  freelist_;
+    t_tracers_   tracers_;
+    t_observers_ observers_;
   };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -580,7 +631,13 @@ namespace tracer
 
     t_void process_item(t_any&& any) {
       t_item_& item = any.ref<t_item_>();
-      printf("line = %s", get(item.line.c_str()));
+      t_data_::t_tracer_* data = data_.is_tracer(item.id);
+      if (data && item.level <= data->info.params.level) {
+        for (auto oberver_impl : *data->impls)
+          oberver_impl->notify(item);
+        if (data_.params.to_terminal)
+          printf("line = %s", get(item.line.c_str()));
+      }
     }
 
     t_void process_chain(t_chain& chain) {

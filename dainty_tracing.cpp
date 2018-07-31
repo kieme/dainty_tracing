@@ -78,6 +78,12 @@ namespace tracer
   t_impl_id_ get_(R_id id) {
     return id.id_;
   }
+
+  inline
+  t_void set_(t_id& id, t_id::t_seq seq, t_impl_id_ impl_id) {
+    id.seq_ = seq;
+    id.id_  = impl_id;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -467,7 +473,30 @@ namespace tracer
 
     t_tracer_id add_tracer(r_err err, R_tracer_name name,
                            R_tracer_params params) {
-      // XXX-1
+      t_tracer_id id;
+      if (!freelist_.is_full()) {
+        auto tracer = tracers_.insert(t_tracers_::value_type(name,
+                                                             t_tracer_lk_()));
+        if (tracer.second) {
+          auto result = freelist_.insert();
+          set_(result.ptr->id, 0, result.id);
+          result.ptr->info.name   = name;
+          result.ptr->info.params = params;
+          result.ptr->impls       = &tracer.first->second.impls;
+          tracer.first->second.data = result.ptr;
+          id = result.ptr->id;
+        } else if (tracer.first != tracers_.end()) {
+          if (!tracer.first->second.data) {
+            auto result = freelist_.insert();
+            set_(result.ptr->id, 0, result.id);
+            result.ptr->info.name   = name;
+            result.ptr->info.params = params;
+            result.ptr->impls       = &tracer.first->second.impls;
+            tracer.first->second.data = result.ptr;
+            id = result.ptr->id;
+          }
+        }
+      }
       return t_tracer_id{};
     }
 

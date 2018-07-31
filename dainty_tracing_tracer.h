@@ -135,6 +135,7 @@ namespace tracer
     t_id release();
 
   private:
+    friend t_void set_(t_id&, t_seq, t_impl_id_);
     friend t_impl_id_ get_(const t_id&);
     friend t_bool operator==(const t_id&, const t_id&);
     friend class t_point;

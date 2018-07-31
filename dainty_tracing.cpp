@@ -469,7 +469,7 @@ namespace tracer
       return true;
     }
 
-    virtual t_quit notify_error(t_errno)  override {
+    virtual t_quit notify_error(t_errn)  override {
       return true;
     }
 

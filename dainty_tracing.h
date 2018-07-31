@@ -41,6 +41,7 @@ namespace tracing
   using tracer::t_validity;
   using tracer::t_level;
   using tracer::t_credit;
+  using tracer::t_impl_id_;
   using tracer::VALID;
   using tracer::INVALID;
   using tracer::FMT;
@@ -148,6 +149,26 @@ namespace tracing
 
 ///////////////////////////////////////////////////////////////////////////////
 
+  using t_tracer_names   = std::vector<t_tracer_name>;
+  using r_tracer_names   = named::t_prefix<t_tracer_names>::r_;
+  using t_observer_names = std::vector<t_observer_name>;
+  using r_observer_names = named::t_prefix<t_observer_names>::r_;
+
+  class t_observer_info {
+  public:
+    t_observer_info() {
+    }
+
+    t_observer_info(R_observer_name _name, R_observer_params _params)
+      : name(_name), params(_params) {
+    }
+
+    t_observer_name   name;
+    t_observer_params params;
+    t_tracer_names    tracers;
+    t_stats           stats;
+  };
+
   class t_tracer_info {
   public:
     t_tracer_id     id;
@@ -156,26 +177,9 @@ namespace tracing
     t_stats         stats;
   };
 
-  using r_tracer_info = named::t_prefix<t_tracer_info>::r_;
-
-  class t_observer_info {
-  public:
-    t_observer_info() { }
-    t_observer_info(R_observer_name _name, R_observer_params _params)
-      : name(_name), params(_params) {
-    }
-
-    t_tracer_id       id;
-    t_observer_name   name;
-    t_observer_params params;
-    t_stats           stats;
-  };
-
+  using r_tracer_info    = named::t_prefix<t_tracer_info>::r_;
+  using p_tracer_info    = named::t_prefix<t_tracer_info>::p_;
   using r_observer_info  = named::t_prefix<t_observer_info>::r_;
-  using t_tracer_names   = std::vector<t_tracer_name>;
-  using r_tracer_names   = named::t_prefix<t_tracer_names>::r_;
-  using t_observer_names = std::vector<t_observer_name>;
-  using r_observer_names = named::t_prefix<t_observer_names>::r_;
   using t_observer_infos = std::vector<t_observer_info>;
   using r_observer_infos = named::t_prefix<t_observer_infos>::r_;
   using t_tracer_infos   = std::vector<t_tracer_info>;
@@ -187,7 +191,6 @@ namespace tracing
   public:
     const t_n   queuesize;
     const t_n   max_tracers;
-    const t_n   max_observers;
     t_bool      to_terminal;
     t_bool      to_observers;
     t_time_mode time_mode;
@@ -196,7 +199,6 @@ namespace tracing
 
     t_params() : queuesize    (4000),
                  max_tracers  (100),
-                 max_observers(10),
                  to_terminal  (true),
                  to_observers (true),
                  time_mode    (DATE),
@@ -206,7 +208,6 @@ namespace tracing
 
     t_params(t_n         _queuesize,
              t_n         _max_tracers,
-             t_n         _max_observers,
              t_bool      _to_terminal,
              t_bool      _to_observers,
              t_time_mode _time_mode,
@@ -214,7 +215,6 @@ namespace tracing
              t_n         _textline_len)
       : queuesize    (_queuesize),
         max_tracers  (_max_tracers),
-        max_observers(_max_observers),
         to_terminal  (_to_terminal),
         to_observers (_to_observers),
         time_mode    (_time_mode),
@@ -239,8 +239,8 @@ namespace tracing
 
   t_tracer   make_tracer  (t_err, R_tracer_name);
   t_tracer   make_tracer  (t_err, R_tracer_name, R_tracer_params);
-  t_bool     update_tracer(t_err, R_wildcard_name, t_level);
   t_validity update_tracer(t_err, R_tracer_name, R_tracer_params);
+  t_bool     update_tracer(t_err, R_wildcard_name, t_level);
   t_bool     fetch_tracer (t_err, R_tracer_name, r_tracer_params);
   t_bool     fetch_tracer (t_err, R_tracer_name, r_tracer_info,
                                   t_bool clearstats = false);

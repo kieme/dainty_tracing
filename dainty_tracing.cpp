@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 #include <memory>
+#include <map>
 #include "dainty_mt_event_dispatcher.h"
 #include "dainty_mt_waitable_chained_queue.h"
 #include "dainty_mt_command.h"
@@ -88,6 +89,33 @@ namespace tracer
   t_bool operator==(R_item_ lh, R_item_ rh) {
     return lh.line == rh.line;
   }
+
+///////////////////////////////////////////////////////////////////////////////
+
+  class t_observer_impl_ {
+  public:
+    t_observer_impl_(t_observer_info* _info) : info(_info) {
+    }
+
+    virtual ~t_observer_impl_() { };
+
+    virtual t_void notify(R_item_) = 0;
+
+    t_observer_info* info;
+  };
+
+  using p_observer_impl_  = named::t_prefix<t_observer_impl_>::p_;
+  using t_observer_impls_ = std::vector<p_observer_impl_>;
+
+  class t_observer_logger_impl_ : t_observer_impl_ {
+  public:
+    t_observer_logger_impl_(t_observer_info* _info) : t_observer_impl_{_info} {
+    }
+
+    virtual t_void notify(R_item_) override {
+    }
+  };
+
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -389,16 +417,91 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  // tracer   - freelist
-  // observer - freelist
-  // tracer_lk
-  // observer_lk
+  class t_data_ {
+  public:
+    struct t_tracer_data_ {
+      t_tracer_info     info;
+      t_observer_impls_ observer_impls;
+    };
 
-  struct t_data_ {
+    struct t_tracer_lk_data_ {
+      p_tracer_info     info;
+      t_observer_impls_ observer_impls;
+    };
+
+    struct t_observer_data_ {
+      t_observer_info  info;
+      p_observer_impl_ observer_impl;
+    };
+
     t_params params;
 
-    t_data_(R_params _params) : params{_params} {
+    t_data_(R_params _params)
+      : params{_params}, tracers_{params.max_tracers} {
     }
+
+    t_tracer_id add_tracer(t_err, R_tracer_name, R_tracer_params) {
+      return t_tracer_id{};
+    }
+
+    t_validity update_tracer(t_err, R_tracer_name, R_tracer_params) {
+      return INVALID;
+    }
+
+    t_bool update_tracer(t_err, R_wildcard_name, t_level) {
+      return false;
+    }
+
+    t_validity del_tracer(t_tracer_id) {
+      return INVALID;
+    }
+
+    t_tracer_data_* is_tracer(R_tracer_name) const {
+      return nullptr;
+    }
+
+    t_validity add_observer(t_err, R_observer_name _name,
+                            R_observer_params, p_observer_impl_) {
+      return INVALID;
+    }
+
+    t_validity update_observer(t_err, R_observer_name _name,
+                               R_observer_params, p_observer_impl_) {
+      return INVALID;
+    }
+
+    t_validity del_observer(R_observer_name) {
+      return INVALID;
+    }
+
+    t_observer_data_* is_observer(R_observer_name) {
+      return nullptr;
+    }
+
+    t_validity bind_tracer(t_err, R_observer_name, R_wildcard_name) {
+      return INVALID;
+    }
+
+    t_validity unbind_tracer(t_err, R_observer_name, R_wildcard_name) {
+      return INVALID;
+    }
+
+    t_bool fetch_bound_tracers(t_err, R_observer_name, r_tracer_names) {
+      return false;
+    }
+
+    t_bool fetch_bound_observers(t_err, R_tracer_name, r_observer_names) {
+      return false;
+    }
+
+  private:
+    using t_tracers_    = freelist::t_freelist<t_tracer_data_>;
+    using t_tracers_lk_ = std::map<t_tracer_name, t_tracer_lk_data_>;
+    using t_observers_  = std::map<t_observer_name, t_observer_data_>;
+
+    t_tracers_      tracers_;
+    t_tracers_lk_   tracers_lk_;
+    t_observers_    observers_;
   };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -521,9 +624,9 @@ namespace tracer
       // work done
     }
 
-    t_void process(tracing::t_err err, t_make_tracer_cmd_&) noexcept {
+    t_void process(tracing::t_err err, t_make_tracer_cmd_& cmd) noexcept {
       printf("thread make_tracer_cmd received\n");
-      // work done
+      cmd.id = data_.add_tracer(err, cmd.name, cmd.params);
     }
 
     t_void process(tracing::t_err err, t_update_tracer_cmd_&) noexcept {

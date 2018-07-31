@@ -69,7 +69,8 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  using t_credit = named::t_uint32;
+  using t_impl_id_ = container::freelist::t_id;
+  using t_credit   = named::t_uint32;
 
   enum  t_name_tag_ {};
   using t_name = t_string<t_name_tag_, 32>;
@@ -125,7 +126,6 @@ namespace tracer
   class t_id {
   public:
     using t_seq      = named::t_int32;
-    using t_impl_id_ = container::freelist::t_id;
 
     t_id();
     t_id(const t_id&);

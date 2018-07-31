@@ -488,13 +488,11 @@ namespace tracer
     virtual t_void async_process(t_chain chain) noexcept override {
       printf("recv a trace\n");
       process_chain(chain);
-      action_.cmd = CONTINUE;
     }
 
     virtual t_void async_process(t_user, p_command cmd) noexcept override {
       printf("thread async command - none is used at this point\n");
       // not used
-      action_.cmd = CONTINUE;
     }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -506,61 +504,51 @@ namespace tracer
     t_void process(tracing::t_err err, t_update_params_cmd_&) noexcept {
       printf("thread update_params_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_params_cmd_&) noexcept {
       printf("thread fetch_params_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_get_point_name_cmd_&) noexcept {
       printf("thread get_point_name_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_get_point_level_cmd_&) noexcept {
       printf("thread get_point_level_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_make_tracer_cmd_&) noexcept {
       printf("thread make_tracer_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_update_tracer_cmd_&) noexcept {
       printf("thread update_tracer_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_update_tracer_params_cmd_&) noexcept {
       printf("thread update_tracer_params_cmd received\n");
-      action_.cmd = CONTINUE;
       // work done
     }
 
     t_void process(tracing::t_err err, t_fetch_tracer_params_cmd_&) noexcept {
       printf("thread fetch_tracer_params_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_tracer_info_cmd_&) noexcept {
       printf("thread fetch_tracer_info_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_tracers_cmd_&) noexcept {
       printf("thread fetch_tracers_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_create_observer_cmd_&) noexcept {
@@ -571,66 +559,55 @@ namespace tracer
     t_void process(tracing::t_err err, t_destroy_observer_cmd_&) noexcept {
       printf("thread destroy_observer_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_update_observer_cmd_&) noexcept {
       printf("thread update_observer_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_observer_cmd_&) noexcept {
       printf("thread fetch_observer_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_observer_info_cmd_&) noexcept {
       printf("thread fetch_observer_info_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_observers_cmd_&) noexcept {
       printf("thread fetch_observers_cmd received\n");
-      // work done
     }
 
     t_void process(tracing::t_err err, t_bind_tracers_cmd_&) noexcept {
       printf("thread bind_tracers_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_unbind_tracers_cmd_&) noexcept {
       printf("thread unbind_tracers_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_is_tracer_bound_cmd_&) noexcept {
       printf("thread is_tracer_bound_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_bound_tracers_cmd_&) noexcept {
       printf("thread fetch_bound_tracers_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_fetch_bound_observers_cmd_&) noexcept {
       printf("thread fetch_bound_observers_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_destroy_tracer_cmd_&) noexcept {
       printf("thread destroy_tracer_cmd received\n");
       // work done
-      action_.cmd = CONTINUE;
     }
 
     t_void process(tracing::t_err err, t_clean_death_cmd_&) noexcept {
@@ -735,6 +712,7 @@ namespace tracer
       }
 
       virtual t_action notify_event(r_event_params params) override {
+        action_.cmd = CONTINUE;
         processor_.process(err_, logic_);
         return action_;
       }
@@ -758,6 +736,7 @@ namespace tracer
       }
 
       virtual t_action notify_event(r_event_params params) override {
+        action_.cmd = CONTINUE;
         processor_.process(err_, logic_);
         return action_;
       }

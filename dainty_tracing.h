@@ -259,6 +259,7 @@ namespace tracing
 
 ///////////////////////////////////////////////////////////////////////////////
 
+  t_bool   bind_tracer        (t_err, R_observer_name, R_tracer_name);
   t_bool   bind_tracers       (t_err, R_observer_name, R_wildcard_name);
   t_bool unbind_tracers       (t_err, R_observer_name, R_wildcard_name);
   t_bool is_tracer_bound      (t_err, R_observer_name, R_tracer_name);

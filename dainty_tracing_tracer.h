@@ -125,7 +125,7 @@ namespace tracer
 
   class t_id {
   public:
-    using t_seq      = named::t_int32;
+    using t_seq = named::t_int32;
 
     t_id();
     t_id(const t_id&);
@@ -135,6 +135,7 @@ namespace tracer
     t_id release();
 
   private:
+    friend t_impl_id_ get_(const t_id&);
     friend t_bool operator==(const t_id&, const t_id&);
     friend class t_point;
     t_id(t_seq, t_impl_id_);

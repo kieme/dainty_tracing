@@ -465,7 +465,7 @@ namespace tracer
     virtual t_void notify_event_remove(r_event_info) override {
     }
 
-    virtual t_quit notify_timeout(t_microseconds) override {
+    virtual t_quit notify_timeout(t_usec) override {
       return true;
     }
 

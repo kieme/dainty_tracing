@@ -28,6 +28,7 @@
 #include <memory>
 #include <map>
 #include <algorithm>
+#include <limits>
 #include "dainty_mt_event_dispatcher.h"
 #include "dainty_mt_waitable_chained_queue.h"
 #include "dainty_mt_command.h"
@@ -102,6 +103,16 @@ namespace tracer
     return lh.line == rh.line;
   }
 
+  enum  t_line_tag_ { };
+  using t_line = named::string::t_string<t_line_tag_>;
+
+  t_line make_line(t_n max, t_time_mode time_mode, t_item_& item) {
+    t_line line(max);
+    line += item.line;
+    return line;
+  }
+  using R_line = named::t_prefix<t_line>::R_;
+
 ///////////////////////////////////////////////////////////////////////////////
 
   class t_observer_impl_ {
@@ -111,7 +122,7 @@ namespace tracer
 
     virtual ~t_observer_impl_() { };
 
-    virtual t_void notify(R_item_) = 0;
+    virtual t_void notify(R_line) = 0;
 
     t_observer_info* info;
   };
@@ -125,7 +136,8 @@ namespace tracer
     t_observer_logger_impl_(t_observer_info* _info) : t_observer_impl_{_info} {
     }
 
-    virtual t_void notify(R_item_) override {
+    virtual t_void notify(R_line line) override {
+      printf("observer[%s]: %s", get(info->name.c_str()), get(line.c_str()));
     }
   };
 
@@ -140,6 +152,7 @@ namespace tracer
     t_update_params_cmd_(R_params _params) : t_cmd{cmd_id}, params(_params) {
     };
   };
+  using r_update_params_cmd_ = named::t_prefix<t_update_params_cmd_>::r_;
 
   struct t_fetch_params_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 2;
@@ -149,6 +162,7 @@ namespace tracer
     t_fetch_params_cmd_(r_params _params) : t_cmd{cmd_id}, params(_params) {
     };
   };
+  using r_fetch_params_cmd_ = named::t_prefix<t_fetch_params_cmd_>::r_;
 
   struct t_get_point_name_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 3;
@@ -160,6 +174,7 @@ namespace tracer
       : t_cmd{cmd_id}, id(_id), name(_name) {
     };
   };
+  using r_get_point_name_cmd_ = named::t_prefix<t_get_point_name_cmd_>::r_;
 
   struct t_get_point_level_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 4;
@@ -171,6 +186,7 @@ namespace tracer
       : t_cmd{cmd_id}, id(_id), level(_level) {
     };
   };
+  using r_get_point_level_cmd_ = named::t_prefix<t_get_point_level_cmd_>::r_;
 
   struct t_make_tracer_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 5;
@@ -183,6 +199,7 @@ namespace tracer
       : t_cmd{cmd_id}, name(_name), params(_params), id(_id) {
     };
   };
+  using r_make_tracer_cmd_ = named::t_prefix<t_make_tracer_cmd_>::r_;
 
   struct t_update_tracer_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 6;
@@ -196,6 +213,7 @@ namespace tracer
       : t_cmd{cmd_id}, name(_name), level(_level), updated(_updated) {
     };
   };
+  using r_update_tracer_cmd_ = named::t_prefix<t_update_tracer_cmd_>::r_;
 
   struct t_update_tracer_params_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 7;
@@ -207,6 +225,8 @@ namespace tracer
       : t_cmd{cmd_id}, name(_name), params(_params) {
     };
   };
+  using r_update_tracer_params_cmd_ =
+    named::t_prefix<t_update_tracer_params_cmd_>::r_;
 
   struct t_fetch_tracer_params_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 8;
@@ -220,21 +240,25 @@ namespace tracer
       : t_cmd{cmd_id}, name(_name), params(_params), found(_found) {
     };
   };
+  using r_fetch_tracer_params_cmd_ =
+    named::t_prefix<t_fetch_tracer_params_cmd_>::r_;
 
   struct t_fetch_tracer_info_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 9;
-    R_tracer_name name;
-    r_tracer_info info;
+    R_tracer_name  name;
+    r_tracer_info& info;
     t_bool         clear_stats;
     t_bool&        found;
 
     inline
-    t_fetch_tracer_info_cmd_(R_tracer_name _name, r_tracer_info _info,
+    t_fetch_tracer_info_cmd_(R_tracer_name _name, r_tracer_info& _info,
                              t_bool _clear_stats, t_bool _found)
       : t_cmd{cmd_id}, name(_name), info(_info), clear_stats(_clear_stats),
         found(_found) {
     };
   };
+  using r_fetch_tracer_info_cmd_ =
+    named::t_prefix<t_fetch_tracer_info_cmd_>::r_;
 
   struct t_fetch_tracers_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 10;
@@ -249,6 +273,7 @@ namespace tracer
         found(_found) {
     };
   };
+  using r_fetch_tracers_cmd_ = named::t_prefix<t_fetch_tracers_cmd_>::r_;
 
   struct t_create_observer_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 11;
@@ -260,7 +285,7 @@ namespace tracer
       : t_cmd{cmd_id}, name(_name), params(_params) {
     };
   };
-
+  using r_create_observer_cmd_ = named::t_prefix<t_create_observer_cmd_>::r_;
 
   struct t_destroy_observer_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 12;
@@ -271,6 +296,7 @@ namespace tracer
       : t_cmd{cmd_id}, name(_name) {
     };
   };
+  using r_destroy_observer_cmd_ = named::t_prefix<t_destroy_observer_cmd_>::r_;
 
   struct t_update_observer_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 13;
@@ -282,6 +308,7 @@ namespace tracer
       : t_cmd{cmd_id}, name(_name), params(_params) {
     };
   };
+  using r_update_observer_cmd_ = named::t_prefix<t_update_observer_cmd_>::r_;
 
   struct t_fetch_observer_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 14;
@@ -296,6 +323,7 @@ namespace tracer
       : t_cmd{cmd_id}, name(_name), params(_params), found(_found) {
     };
   };
+  using r_fetch_observer_cmd_ = named::t_prefix<t_fetch_observer_cmd_>::r_;
 
   struct t_fetch_observer_info_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 15;
@@ -313,6 +341,8 @@ namespace tracer
         found(_found) {
     };
   };
+  using r_fetch_observer_info_cmd_ =
+    named::t_prefix<t_fetch_observer_info_cmd_>::r_;
 
   struct t_fetch_observers_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 16;
@@ -327,6 +357,7 @@ namespace tracer
         found(_found) {
     };
   };
+  using r_fetch_observers_cmd_ = named::t_prefix<t_fetch_observers_cmd_>::r_;
 
   struct t_bind_tracer_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 17;
@@ -340,6 +371,7 @@ namespace tracer
       : t_cmd{cmd_id}, name(_name), tracer_name(_tracer_name), found(_found) {
     };
   };
+  using r_bind_tracer_cmd_ = named::t_prefix<t_bind_tracer_cmd_>::r_;
 
   struct t_bind_tracers_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 18;
@@ -354,6 +386,7 @@ namespace tracer
         found(_found) {
     };
   };
+  using r_bind_tracers_cmd_ = named::t_prefix<t_bind_tracers_cmd_>::r_;
 
   struct t_unbind_tracers_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 19;
@@ -368,6 +401,7 @@ namespace tracer
         found(_found) {
     };
   };
+  using r_unbind_tracers_cmd_ = named::t_prefix<t_unbind_tracers_cmd_>::r_;
 
   struct t_is_tracer_bound_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 20;
@@ -382,6 +416,7 @@ namespace tracer
         found(_found) {
     };
   };
+  using r_is_tracer_bound_cmd_ = named::t_prefix<t_is_tracer_bound_cmd_>::r_;
 
   struct t_fetch_bound_tracers_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 21;
@@ -396,6 +431,8 @@ namespace tracer
         found(_found) {
     };
   };
+  using r_fetch_bound_tracers_cmd_ =
+    named::t_prefix<t_fetch_bound_tracers_cmd_>::r_;
 
   struct t_fetch_bound_observers_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 22;
@@ -411,6 +448,8 @@ namespace tracer
         found(_found) {
     };
   };
+  using r_fetch_bound_observers_cmd_ =
+    named::t_prefix<t_fetch_bound_observers_cmd_>::r_;
 
   struct t_destroy_tracer_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 23;
@@ -422,6 +461,7 @@ namespace tracer
       : t_cmd{cmd_id}, id(_id), done(_done) {
     };
   };
+  using r_destroy_tracer_cmd_ = named::t_prefix<t_destroy_tracer_cmd_>::r_;
 
   struct t_do_chain_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 24;
@@ -432,6 +472,7 @@ namespace tracer
       : t_cmd{cmd_id}, chain(_chain) {
     };
   };
+  using r_do_chain_cmd_ = named::t_prefix<t_do_chain_cmd_>::r_;
 
   struct t_clean_death_cmd_ : t_cmd {
     constexpr static command::t_id cmd_id = 25;
@@ -440,6 +481,7 @@ namespace tracer
     t_clean_death_cmd_() : t_cmd{cmd_id} {
     };
   };
+  using r_clean_death_cmd_ = named::t_prefix<t_clean_death_cmd_>::r_;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -475,44 +517,74 @@ namespace tracer
                            R_tracer_params params) {
       t_tracer_id id;
       if (!freelist_.is_full()) {
+        static t_tracer_id::t_seq seq = 0;
         auto tracer = tracers_.insert(t_tracers_::value_type(name,
                                                              t_tracer_lk_()));
         if (tracer.second) {
           auto result = freelist_.insert();
-          set_(result.ptr->id, 0, result.id);
+          set_(result.ptr->id, ++seq, result.id);
           result.ptr->info.name   = name;
           result.ptr->info.params = params;
           result.ptr->impls       = &tracer.first->second.impls;
           tracer.first->second.data = result.ptr;
           id = result.ptr->id;
+          // bound to all log books with XXX-0
         } else if (tracer.first != tracers_.end()) {
           if (!tracer.first->second.data) {
             auto result = freelist_.insert();
-            set_(result.ptr->id, 0, result.id);
+            set_(result.ptr->id, ++seq, result.id);
             result.ptr->info.name   = name;
             result.ptr->info.params = params;
             result.ptr->impls       = &tracer.first->second.impls;
             tracer.first->second.data = result.ptr;
             id = result.ptr->id;
-          }
-        }
-      }
-      return t_tracer_id{};
+            // bound to all log books with XXX-0
+          } else
+            err = E_XXX;
+        } else
+          err = E_XXX;
+        if (seq == std::numeric_limits<t_tracer_id::t_seq>::max())
+          seq = 0;
+      } else
+        err = E_XXX;
+      return id;
     }
 
     t_validity update_tracer(r_err err, R_tracer_name name,
                              R_tracer_params params) {
-      // XXX-2
+      auto tracer = is_tracer(name);
+      if (tracer) {
+        tracer->info.params = params;
+        return VALID;
+      } else
+        err = E_XXX;
       return INVALID;
     }
 
-    t_bool update_tracer(r_err err, R_wildcard_name, t_level) {
-      // XXX-3
-      return false;
+    t_bool update_tracer(r_err err, R_wildcard_name wildcard_name,
+                         t_level level) {
+      t_bool found = false;
+      for (auto&& tracer : tracers_) {
+        if (tracer.first.match(wildcard_name)) {
+          if (tracer.second.data) {
+            tracer.second.data->info.params.level = level;
+            found = true;
+          }
+        }
+      }
+      return found;
     }
 
     t_validity del_tracer(t_tracer_id id) {
-      // XXX-4
+      auto tracer = is_tracer(id);
+      if (tracer) {
+        auto tracer_lk = tracers_.find(tracer->info.name);
+        if (tracer_lk != tracers_.end()) {
+          tracers_.erase(tracer_lk);
+          freelist_.erase(get_(id));
+          return VALID;
+        }
+      }
       return INVALID;
     }
 
@@ -539,6 +611,7 @@ namespace tracer
         entry.first->second.info.name   = name;
         entry.first->second.info.params = params;
         entry.first->second.impl        = impl;
+        // bound to all - XXX-0
         return VALID;
       }
       return INVALID;
@@ -552,6 +625,7 @@ namespace tracer
         entry->second.info.name   = name;
         entry->second.info.params = params;
         entry->second.impl        = impl;
+        // bound to all - XXX-0
         return VALID;
       }
       return INVALID;
@@ -726,37 +800,38 @@ namespace tracer
       printf("thread run - its main loop\n");
 
       tracing::t_err err;
+      {
+        t_cmd_proxy_ cmd_proxy{err, action_, cmd_processor_, *this};
+        dispatcher_.add_event (err, {cmd_processor_.get_fd(), RD}, &cmd_proxy);
 
-      t_cmd_proxy_ cmd_proxy{err, action_, cmd_processor_, *this};
-      dispatcher_.add_event (err, {cmd_processor_.get_fd(), RD}, &cmd_proxy);
+        t_que_proxy_ que_proxy{err, action_, que_processor_, *this};
+        dispatcher_.add_event (err, {que_processor_.get_fd(), RD}, &que_proxy);
 
-      t_que_proxy_ que_proxy{err, action_, que_processor_, *this};
-      dispatcher_.add_event (err, {que_processor_.get_fd(), RD}, &que_proxy);
-
-      dispatcher_.event_loop(err, this);
-
+        dispatcher_.event_loop(err, this);
+      }
       if (err) {
         err.print();
         err.clear();
       }
-
       return nullptr;
     }
 
 ///////////////////////////////////////////////////////////////////////////////
 
     virtual t_void may_reorder_events (r_event_infos) override {
+      // not required
     }
 
     virtual t_void notify_event_remove(r_event_info) override {
+      // not required
     }
 
     virtual t_quit notify_timeout(t_usec) override {
-      return true;
+      return true; // not required
     }
 
     virtual t_quit notify_error(t_errn)  override {
-      return true;
+      return true; // die
     }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -764,11 +839,33 @@ namespace tracer
     t_void process_item(t_any&& any) {
       t_item_& item = any.ref<t_item_>();
       t_data_::t_tracer_* data = data_.is_tracer(item.id);
-      if (data && item.level <= data->info.params.level) {
-        for (auto oberver_impl : *data->impls)
-          oberver_impl->notify(item);
-        if (data_.params.to_terminal)
-          printf("line = %s", get(item.line.c_str()));
+      if (data) {
+        t_line line = make_line(data_.params.textline_len,
+                                data_.params.time_mode, item);
+        switch (data_.params.mode) {
+          case OFF: {
+          } break;
+
+          case ALL: {
+            if (data_.params.to_terminal)
+              printf("line = %s", get(line.c_str()));
+            if (data_.params.to_observers)
+              for (auto oberver_impl : *data->impls)
+                if (item.level <= oberver_impl->info->params.level)
+                  oberver_impl->notify(line);
+          } break;
+
+          case CONFIG: {
+            if (item.level <= data->info.params.level) {
+              if (data_.params.to_terminal)
+                printf("line = %s", get(line.c_str()));
+              if (data_.params.to_observers)
+                for (auto oberver_impl : *data->impls)
+                  if (item.level <= oberver_impl->info->params.level)
+                    oberver_impl->notify(line);
+            }
+          } break;
+        }
       }
     }
 
@@ -789,211 +886,250 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-    t_void process(tracing::t_err err, t_do_chain_cmd_& cmd) noexcept {
+    t_void process(tracing::t_err err, r_do_chain_cmd_ cmd) noexcept {
       process_chain(cmd.chain);
     }
 
-    t_void process(tracing::t_err err, t_update_params_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_update_params_cmd_ cmd) noexcept {
       printf("thread update_params_cmd received\n");
-      // work done
+      if (get(data_.params.queuesize)   == get(cmd.params.queuesize) &&
+          get(data_.params.max_tracers) == get(cmd.params.max_tracers)) {
+        data_.params.to_terminal  = cmd.params.to_terminal;
+        data_.params.to_observers = cmd.params.to_observers;
+        data_.params.time_mode    = cmd.params.time_mode;
+        data_.params.mode         = cmd.params.mode;
+        data_.params.textline_len = cmd.params.textline_len;
+      } else
+        err = E_XXX;
     }
 
-    t_void process(tracing::t_err err, t_fetch_params_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_fetch_params_cmd_ cmd) noexcept {
       printf("thread fetch_params_cmd received\n");
-      // work done
+      cmd.params = data_.params;
     }
 
-    t_void process(tracing::t_err err, t_get_point_name_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_get_point_name_cmd_ cmd) noexcept {
       printf("thread get_point_name_cmd received\n");
-      // work done
+      auto tracer = data_.is_tracer(cmd.id);
+      if (tracer) {
+        cmd.name = tracer->info.name;
+      } else
+        err = E_XXX;
     }
 
-    t_void process(tracing::t_err err, t_get_point_level_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_get_point_level_cmd_ cmd) noexcept {
       printf("thread get_point_level_cmd received\n");
-      // work done
+      auto tracer = data_.is_tracer(cmd.id);
+      if (tracer) {
+        cmd.level = tracer->info.params.level;
+      } else
+        err = E_XXX;
     }
 
-    t_void process(tracing::t_err err, t_make_tracer_cmd_& cmd) noexcept {
+    t_void process(tracing::t_err err, r_make_tracer_cmd_ cmd) noexcept {
       printf("thread make_tracer_cmd received\n");
       cmd.id = data_.add_tracer(err, cmd.name, cmd.params);
     }
 
-    t_void process(tracing::t_err err, t_update_tracer_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_update_tracer_cmd_ cmd) noexcept {
       printf("thread update_tracer_cmd received\n");
-      // work done
+      cmd.updated = data_.update_tracer(err, cmd.name, cmd.level);
     }
 
-    t_void process(tracing::t_err err, t_update_tracer_params_cmd_&) noexcept {
+    t_void process(tracing::t_err err,
+                   r_update_tracer_params_cmd_ cmd) noexcept {
       printf("thread update_tracer_params_cmd received\n");
-      // work done
+      data_.update_tracer(err, cmd.name, cmd.params);
     }
 
-    t_void process(tracing::t_err err, t_fetch_tracer_params_cmd_&) noexcept {
+    t_void process(tracing::t_err err,
+                   r_fetch_tracer_params_cmd_ cmd) noexcept {
       printf("thread fetch_tracer_params_cmd received\n");
-      // work done
+      cmd.found = false;
+      auto tracer = data_.is_tracer(cmd.name);
+      if (tracer) {
+        cmd.params = tracer->info.params;
+        cmd.found  = true;
+      } else
+        err = E_XXX;
     }
 
-    t_void process(tracing::t_err err, t_fetch_tracer_info_cmd_&) noexcept {
+    t_void process(tracing::t_err err,
+                   r_fetch_tracer_info_cmd_ cmd) noexcept {
       printf("thread fetch_tracer_info_cmd received\n");
-      // work done
+      cmd.found = false;
+      auto tracer = data_.is_tracer(cmd.name);
+      if (tracer) {
+        cmd.info  = tracer->info;
+        cmd.found = true;
+        if (cmd.clear_stats)
+          tracer->info.stats.reset();
+      } else
+        err = E_XXX;
     }
 
-    t_void process(tracing::t_err err, t_fetch_tracers_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_fetch_tracers_cmd_ cmd) noexcept {
       printf("thread fetch_tracers_cmd received\n");
-      // work done
+      // XXX-1
     }
 
-    t_void process(tracing::t_err err, t_create_observer_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_create_observer_cmd_ cmd) noexcept {
       printf("thread create_observer_cmd received\n");
-      // work done
+      // XXX-2
     }
 
-    t_void process(tracing::t_err err, t_destroy_observer_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_destroy_observer_cmd_ cmd) noexcept {
       printf("thread destroy_observer_cmd received\n");
-      // work done
+      // XXX-3
     }
 
-    t_void process(tracing::t_err err, t_update_observer_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_update_observer_cmd_ cmd) noexcept {
       printf("thread update_observer_cmd received\n");
-      // work done
+      // XXX-4
     }
 
-    t_void process(tracing::t_err err, t_fetch_observer_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_fetch_observer_cmd_ cmd) noexcept {
       printf("thread fetch_observer_cmd received\n");
-      // work done
+      // XXX-5
     }
 
-    t_void process(tracing::t_err err, t_fetch_observer_info_cmd_&) noexcept {
+    t_void process(tracing::t_err err,
+                   r_fetch_observer_info_cmd_ cmd) noexcept {
       printf("thread fetch_observer_info_cmd received\n");
-      // work done
+      // XXX-6
     }
 
-    t_void process(tracing::t_err err, t_fetch_observers_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_fetch_observers_cmd_ cmd) noexcept {
       printf("thread fetch_observers_cmd received\n");
+      // XXX-7
     }
 
-    t_void process(tracing::t_err err, t_bind_tracer_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_bind_tracer_cmd_ cmd) noexcept {
       printf("thread bind_tracer_cmd received\n");
-      // work done
+      // XXX-8
     }
 
-    t_void process(tracing::t_err err, t_bind_tracers_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_bind_tracers_cmd_ cmd) noexcept {
       printf("thread bind_tracers_cmd received\n");
-      // work done
+      // XXX-9
     }
 
-    t_void process(tracing::t_err err, t_unbind_tracers_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_unbind_tracers_cmd_ cmd) noexcept {
       printf("thread unbind_tracers_cmd received\n");
-      // work done
+      // XXX-10
     }
 
-    t_void process(tracing::t_err err, t_is_tracer_bound_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_is_tracer_bound_cmd_ cmd) noexcept {
       printf("thread is_tracer_bound_cmd received\n");
-      // work done
+      // XXX-11
     }
 
-    t_void process(tracing::t_err err, t_fetch_bound_tracers_cmd_&) noexcept {
+    t_void process(tracing::t_err err,
+                   r_fetch_bound_tracers_cmd_ cmd) noexcept {
       printf("thread fetch_bound_tracers_cmd received\n");
-      // work done
+      // XXX-12
     }
 
-    t_void process(tracing::t_err err, t_fetch_bound_observers_cmd_&) noexcept {
+    t_void process(tracing::t_err err,
+                   r_fetch_bound_observers_cmd_ cmd) noexcept {
       printf("thread fetch_bound_observers_cmd received\n");
-      // work done
+      // XXX-13
     }
 
-    t_void process(tracing::t_err err, t_destroy_tracer_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_destroy_tracer_cmd_ cmd) noexcept {
       printf("thread destroy_tracer_cmd received\n");
-      // work done
+      // XXX-14
     }
 
-    t_void process(tracing::t_err err, t_clean_death_cmd_&) noexcept {
+    t_void process(tracing::t_err err, r_clean_death_cmd_ cmd) noexcept {
       printf("thread clean_death_cmd received\n");
       action_.cmd = QUIT_EVENT_LOOP;
     }
 
     virtual t_void process(t_cmd_err err, t_user,
                            r_command cmd) noexcept override {
-      switch (cmd.id) {
-        case t_update_params_cmd_::cmd_id:
-          process(err, static_cast<t_update_params_cmd_&>(cmd));
-          break;
-        case t_fetch_params_cmd_::cmd_id:
-          process(err, static_cast<t_fetch_params_cmd_&>(cmd));
-          break;
-        case t_get_point_name_cmd_::cmd_id:
-          process(err, static_cast<t_get_point_name_cmd_&>(cmd));
-          break;
-        case t_get_point_level_cmd_::cmd_id:
-          process(err, static_cast<t_get_point_level_cmd_&>(cmd));
-          break;
-        case t_make_tracer_cmd_::cmd_id:
-          process(err, static_cast<t_make_tracer_cmd_&>(cmd));
-          break;
-        case t_update_tracer_cmd_::cmd_id:
-          process(err, static_cast<t_update_tracer_cmd_&>(cmd));
-          break;
-        case t_update_tracer_params_cmd_::cmd_id:
-          process(err, static_cast<t_update_tracer_params_cmd_&>(cmd));
-          break;
-        case t_fetch_tracer_params_cmd_::cmd_id:
-          process(err, static_cast<t_fetch_tracer_params_cmd_&>(cmd));
-          break;
-        case t_fetch_tracer_info_cmd_::cmd_id:
-          process(err, static_cast<t_fetch_tracer_info_cmd_&>(cmd));
-          break;
-        case t_fetch_tracers_cmd_::cmd_id:
-          process(err, static_cast<t_fetch_tracers_cmd_&>(cmd));
-          break;
-        case t_create_observer_cmd_::cmd_id:
-          process(err, static_cast<t_create_observer_cmd_&>(cmd));
-          break;
-        case t_destroy_observer_cmd_::cmd_id:
-          process(err, static_cast<t_destroy_observer_cmd_&>(cmd));
-          break;
-        case t_update_observer_cmd_::cmd_id:
-          process(err, static_cast<t_update_observer_cmd_&>(cmd));
-          break;
-        case t_fetch_observer_cmd_::cmd_id:
-          process(err, static_cast<t_fetch_observer_cmd_&>(cmd));
-          break;
-        case t_fetch_observer_info_cmd_::cmd_id:
-          process(err, static_cast<t_fetch_observer_info_cmd_&>(cmd));
-          break;
-        case t_fetch_observers_cmd_::cmd_id:
-          process(err, static_cast<t_fetch_observers_cmd_&>(cmd));
-          break;
-        case t_bind_tracer_cmd_::cmd_id:
-          process(err, static_cast<t_bind_tracer_cmd_&>(cmd));
-          break;
-        case t_bind_tracers_cmd_::cmd_id:
-          process(err, static_cast<t_bind_tracers_cmd_&>(cmd));
-          break;
-        case t_unbind_tracers_cmd_::cmd_id:
-          process(err, static_cast<t_unbind_tracers_cmd_&>(cmd));
-          break;
-        case t_is_tracer_bound_cmd_::cmd_id:
-          process(err, static_cast<t_is_tracer_bound_cmd_&>(cmd));
-          break;
-        case t_fetch_bound_tracers_cmd_::cmd_id:
-          process(err, static_cast<t_fetch_bound_tracers_cmd_&>(cmd));
-          break;
-        case t_fetch_bound_observers_cmd_::cmd_id:
-          process(err, static_cast<t_fetch_bound_observers_cmd_&>(cmd));
-          break;
-        case t_destroy_tracer_cmd_::cmd_id:
-          process(err, static_cast<t_destroy_tracer_cmd_&>(cmd));
-          break;
-        case t_do_chain_cmd_::cmd_id:
-          process(err, static_cast<t_do_chain_cmd_&>(cmd));
-          break;
-        case t_clean_death_cmd_::cmd_id:
-          process(err, static_cast<t_clean_death_cmd_&>(cmd));
-          break;
-        default:
-          // made a mess
-          // XXX- 16
-          break;
+      T_ERR_GUARD(err) {
+        switch (cmd.id) {
+          case t_update_params_cmd_::cmd_id:
+            process(err, static_cast<r_update_params_cmd_>(cmd));
+            break;
+          case t_fetch_params_cmd_::cmd_id:
+            process(err, static_cast<r_fetch_params_cmd_>(cmd));
+            break;
+          case t_get_point_name_cmd_::cmd_id:
+            process(err, static_cast<r_get_point_name_cmd_>(cmd));
+            break;
+          case t_get_point_level_cmd_::cmd_id:
+            process(err, static_cast<r_get_point_level_cmd_>(cmd));
+            break;
+          case t_make_tracer_cmd_::cmd_id:
+            process(err, static_cast<r_make_tracer_cmd_>(cmd));
+            break;
+          case t_update_tracer_cmd_::cmd_id:
+            process(err, static_cast<r_update_tracer_cmd_>(cmd));
+            break;
+          case t_update_tracer_params_cmd_::cmd_id:
+            process(err, static_cast<r_update_tracer_params_cmd_>(cmd));
+            break;
+          case t_fetch_tracer_params_cmd_::cmd_id:
+            process(err, static_cast<r_fetch_tracer_params_cmd_>(cmd));
+            break;
+          case t_fetch_tracer_info_cmd_::cmd_id:
+            process(err, static_cast<r_fetch_tracer_info_cmd_>(cmd));
+            break;
+          case t_fetch_tracers_cmd_::cmd_id:
+            process(err, static_cast<r_fetch_tracers_cmd_>(cmd));
+            break;
+          case t_create_observer_cmd_::cmd_id:
+            process(err, static_cast<r_create_observer_cmd_>(cmd));
+            break;
+          case t_destroy_observer_cmd_::cmd_id:
+            process(err, static_cast<r_destroy_observer_cmd_>(cmd));
+            break;
+          case t_update_observer_cmd_::cmd_id:
+            process(err, static_cast<r_update_observer_cmd_>(cmd));
+            break;
+          case t_fetch_observer_cmd_::cmd_id:
+            process(err, static_cast<r_fetch_observer_cmd_>(cmd));
+            break;
+          case t_fetch_observer_info_cmd_::cmd_id:
+            process(err, static_cast<r_fetch_observer_info_cmd_>(cmd));
+            break;
+          case t_fetch_observers_cmd_::cmd_id:
+            process(err, static_cast<r_fetch_observers_cmd_>(cmd));
+            break;
+          case t_bind_tracer_cmd_::cmd_id:
+            process(err, static_cast<r_bind_tracer_cmd_>(cmd));
+            break;
+          case t_bind_tracers_cmd_::cmd_id:
+            process(err, static_cast<r_bind_tracers_cmd_>(cmd));
+            break;
+          case t_unbind_tracers_cmd_::cmd_id:
+            process(err, static_cast<r_unbind_tracers_cmd_>(cmd));
+            break;
+          case t_is_tracer_bound_cmd_::cmd_id:
+            process(err, static_cast<r_is_tracer_bound_cmd_>(cmd));
+            break;
+          case t_fetch_bound_tracers_cmd_::cmd_id:
+            process(err, static_cast<r_fetch_bound_tracers_cmd_>(cmd));
+            break;
+          case t_fetch_bound_observers_cmd_::cmd_id:
+            process(err, static_cast<r_fetch_bound_observers_cmd_>(cmd));
+            break;
+          case t_destroy_tracer_cmd_::cmd_id:
+            process(err, static_cast<r_destroy_tracer_cmd_>(cmd));
+            break;
+          case t_do_chain_cmd_::cmd_id:
+            process(err, static_cast<r_do_chain_cmd_>(cmd));
+            break;
+          case t_clean_death_cmd_::cmd_id:
+            process(err, static_cast<r_clean_death_cmd_>(cmd));
+            break;
+          default:
+            // made a mess
+            // XXX- 16
+            break;
+        }
       }
     }
 

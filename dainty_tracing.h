@@ -137,11 +137,13 @@ namespace tracing
 
   class t_observer_params {
   public:
-    t_observer_params(t_level _level = default_observer_level())
-      : level(_level) {
-    }
-
     t_level level;
+    t_bool  bind_to_all;
+
+    t_observer_params(t_level _level       = default_observer_level(),
+                      t_bool  _bind_to_all = false)
+      : level(_level), bind_to_all(_bind_to_all) {
+    }
   };
 
   using r_observer_params = named::t_prefix<t_observer_params>::r_;
@@ -188,8 +190,8 @@ namespace tracing
 
   class t_params {
   public:
-    const t_n   queuesize;
-    const t_n   max_tracers;
+    t_n         queuesize;
+    t_n         max_tracers;
     t_bool      to_terminal;
     t_bool      to_observers;
     t_time_mode time_mode;
@@ -201,7 +203,7 @@ namespace tracing
                  to_terminal  (true),
                  to_observers (true),
                  time_mode    (DATE),
-                 mode         (CONFIG),
+                 mode         (ALL),
                  textline_len (100) {
     }
 

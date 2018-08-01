@@ -106,15 +106,12 @@ namespace tracer
   class t_params {
   public:
     t_level  level;
-    t_bool   bind_to_all;
     t_credit credit;
 
-    t_params(t_level  _level       = default_level(),
-             t_bool   _bind_to_all = false,
-             t_credit _credit      = default_credit())
-      : level      (_level),
-        bind_to_all(_bind_to_all),
-        credit     (_credit) {
+    t_params(t_level  _level  = default_level(),
+             t_credit _credit = default_credit())
+      : level (_level),
+        credit(_credit) {
     }
   };
 

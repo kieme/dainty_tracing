@@ -1031,10 +1031,20 @@ namespace tracer
 
     t_void process(tracing::t_err err, r_create_observer_cmd_ cmd) noexcept {
       printf("thread create_observer_cmd received\n");
-       auto observer = data_.add_observer(err, cmd.name, cmd.params);
-       if (observer) {
-         observer->impl = new t_observer_logger_impl_(&observer->info);
-       }
+      auto observer = data_.add_observer(err, cmd.name, cmd.params);
+      if (observer) {
+        switch (cmd.params.output) {
+          case LOGGER:
+            observer->impl = new t_observer_logger_impl_(&observer->info);
+            break;
+          case FTRACE:
+            err = E_XXX; // not implemented
+            break;
+          case SHM:
+            err = E_XXX; // not implemented
+            break;
+        }
+      }
     }
 
     t_void process(tracing::t_err err, r_destroy_observer_cmd_ cmd) noexcept {
@@ -1232,7 +1242,7 @@ namespace tracer
 
       virtual t_action notify_event(r_event_params params) override {
         action_.cmd = CONTINUE;
-        processor_.process(err_, logic_);
+        processor_.process_available(err_, logic_);
         return action_;
       }
 

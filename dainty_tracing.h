@@ -138,12 +138,14 @@ namespace tracing
 
   class t_observer_params {
   public:
-    t_level level;
-    t_bool  bind_to_all;
+    t_level  level;
+    t_bool   bind_to_all;
+    t_output output;
 
-    t_observer_params(t_level _level       = default_observer_level(),
-                      t_bool  _bind_to_all = false)
-      : level(_level), bind_to_all(_bind_to_all) {
+    t_observer_params(t_level  _level       = default_observer_level(),
+                      t_bool   _bind_to_all = false,
+                      t_output _output      = LOGGER)
+      : level(_level), bind_to_all(_bind_to_all), output(_output) {
     }
   };
 

@@ -196,15 +196,15 @@ namespace tracing
     t_bool      to_observers;
     t_time_mode time_mode;
     t_mode      mode;
-    t_n         textline_len;
+    t_n         line_max;
 
     t_params() : queuesize    (4000),
                  max_tracers  (100),
                  to_terminal  (true),
                  to_observers (true),
-                 time_mode    (DATE),
+                 time_mode    (NS_DIFF),
                  mode         (ALL),
-                 textline_len (100) {
+                 line_max     (100) {
     }
 
     t_params(t_n         _queuesize,
@@ -213,14 +213,14 @@ namespace tracing
              t_bool      _to_observers,
              t_time_mode _time_mode,
              t_mode      _mode,
-             t_n         _textline_len)
+             t_n         _line_max)
       : queuesize    (_queuesize),
         max_tracers  (_max_tracers),
         to_terminal  (_to_terminal),
         to_observers (_to_observers),
         time_mode    (_time_mode),
         mode         (_mode),
-        textline_len (_textline_len) {
+        line_max     (_line_max) {
     }
   };
 

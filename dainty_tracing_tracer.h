@@ -76,9 +76,9 @@ namespace tracer
   using t_name = t_string<t_name_tag_, 32>;
   using R_name = named::t_prefix<t_name>::R_;
 
-  enum  t_textline_tag_ {};
-  using t_textline = t_string<t_textline_tag_, 80>;
-  using R_textline = named::t_prefix<t_textline>::R_;
+  enum  t_text_tag_ {};
+  using t_text = t_string<t_text_tag_, 80>;
+  using R_text = named::t_prefix<t_text>::R_;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -95,6 +95,7 @@ namespace tracer
 
   enum  t_levelname_tag_ { };
   using t_levelname = t_string<t_levelname_tag_, 10>;
+  using R_levelname = named::t_prefix<t_levelname>::R_;
 
   t_levelname to_name(t_level);
 
@@ -155,11 +156,11 @@ namespace tracer
     t_point& operator=(const t_point&) = delete;
     t_point(const t_point&)            = delete;
 
-    t_validity post(       t_level, R_textline) const;
-    t_validity post(t_err, t_level, R_textline) const;
+    t_validity post(       t_level, R_text) const;
+    t_validity post(t_err, t_level, R_text) const;
 
-    t_validity waitable_post(       t_level, R_textline) const;
-    t_validity waitable_post(t_err, t_level, R_textline) const;
+    t_validity waitable_post(       t_level, R_text) const;
+    t_validity waitable_post(t_err, t_level, R_text) const;
 
     t_name  get_name () const;
     t_level get_level() const;
@@ -216,8 +217,8 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_validity shared_trace(       t_level, R_textline);
-  t_validity shared_trace(t_err, t_level, R_textline);
+  t_validity shared_trace(       t_level, R_text);
+  t_validity shared_trace(t_err, t_level, R_text);
 
 ////////////////////////////////////////////////////////////////////////////////
 

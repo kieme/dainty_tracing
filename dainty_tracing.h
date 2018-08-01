@@ -58,6 +58,7 @@ namespace tracing
 ///////////////////////////////////////////////////////////////////////////////
 
   using t_tracer        = tracer::t_tracer;
+  using t_point         = tracer::t_point;
   using t_tracer_id     = tracer::t_id;
   using t_tracer_name   = tracer::t_name;
   using R_tracer_name   = tracer::R_name;

@@ -25,6 +25,7 @@
 ******************************************************************************/
 
 #include <stdio.h>
+#include <syslog.h>
 #include <memory>
 #include <map>
 #include <algorithm>
@@ -43,6 +44,7 @@ using namespace dainty::mt;
 using namespace dainty::os;
 using namespace dainty::tracing::tracer;
 
+using dainty::named::string::FMT;
 using dainty::container::any::t_any;
 using dainty::os::threading::t_mutex_lock;
 using dainty::os::clock::t_time;
@@ -89,26 +91,73 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  struct t_item_ {
-    t_id       id;
-    t_level    level;
-    t_textline line;
-    t_time     time;
+  struct t_item_ { // add point name
+    t_id          id;
+    t_level       level;
+    t_text        text;
+    t_time        time;
+    t_tracer_name point;
   };
 
   using R_item_ = named::t_prefix<t_item_>::R_;
 
   inline
   t_bool operator==(R_item_ lh, R_item_ rh) {
-    return lh.line == rh.line;
+    return lh.text == rh.text;
   }
 
-  enum  t_line_tag_ { };
-  using t_line = named::string::t_string<t_line_tag_>;
+///////////////////////////////////////////////////////////////////////////////
 
-  t_line make_line(t_n max, t_time_mode time_mode, t_item_& item) {
+  enum  t_date_tag_ {};
+  using t_date = named::string::t_string<t_date_tag_, 24>;
+
+  inline t_date make_date(t_time_mode time_mode, const t_time& time) {
+    static t_time prev;
+    t_date date;
+    switch (time_mode) {
+      case NS:
+        date.assign(FMT, "%lld.%.9ld", (long long)to_(time).tv_sec,
+                                        to_(time).tv_nsec);
+        break;
+      case NS_DIFF: {
+        if (to_(prev).tv_sec || to_(prev).tv_nsec) {
+          t_time diff(time);
+          diff -= prev;
+          date.assign(FMT, "%lld.%.9ld", (long long)to_(diff).tv_sec,
+                                          to_(diff).tv_nsec);
+        } else
+          date.assign(FMT, "%lld.%.9ld", 0LL, 0L);
+      } break;
+      case DATE:
+        date.assign(FMT, "%lld.%.9ld", (long long)to_(time).tv_sec,
+                                        to_(time).tv_nsec);
+        break;
+    }
+    prev = time;
+    return date;
+  }
+
+///////////////////////////////////////////////////////////////////////////////
+
+  enum  t_line_tag_ { };
+  using t_line = named::string::t_string<t_line_tag_, 0>; // XXX truncate
+
+  t_line make_line(t_n max, t_time_mode time_mode, const t_time& time,
+                   R_tracer_name& name, R_tracer_name point, R_levelname level,
+                   R_text text) {
     t_line line(max);
-    line += item.line;
+    line += make_date(time_mode, time);
+    line += " ";
+    line += name;
+    line += " ";
+    if (point == name)
+      line += "(*) ";
+    else {
+      line += "(";
+      line += point;
+      line += ") ";
+    }
+    line += text;
     return line;
   }
   using R_line = named::t_prefix<t_line>::R_;
@@ -117,30 +166,34 @@ namespace tracer
 
   class t_observer_impl_ {
   public:
+    t_observer_info* info;
+
     t_observer_impl_(t_observer_info* _info) : info(_info) {
     }
 
     virtual ~t_observer_impl_() { };
-
     virtual t_void notify(R_line) = 0;
-
-    t_observer_info* info;
   };
 
   using p_observer_impl_  = named::t_prefix<t_observer_impl_>::p_;
   using t_observer_impls_ = std::vector<p_observer_impl_>;
   using p_observer_impls_ = named::t_prefix<t_observer_impls_>::p_;
 
-  class t_observer_logger_impl_ : t_observer_impl_ {
+///////////////////////////////////////////////////////////////////////////////
+
+  class t_observer_logger_impl_ : public t_observer_impl_ {
   public:
     t_observer_logger_impl_(t_observer_info* _info) : t_observer_impl_{_info} {
+    }
+    ~t_observer_logger_impl_() {
     }
 
     virtual t_void notify(R_line line) override {
       printf("observer[%s]: %s", get(info->name.c_str()), get(line.c_str()));
+      ::syslog(LOG_WARNING, "%s: %s", get(info->name.c_str()),
+                                      get(line.c_str()));
     }
   };
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -603,18 +656,16 @@ namespace tracer
       return nullptr;
     }
 
-    t_validity add_observer(r_err err, R_observer_name name,
-                            R_observer_params params, p_observer_impl_ impl) {
+    t_observer_* add_observer(r_err err, R_observer_name name,
+                              R_observer_params params) {
       auto entry = observers_.insert(t_observers_::value_type(name,
                                                               t_observer_()));
       if (entry.second) {
         entry.first->second.info.name   = name;
         entry.first->second.info.params = params;
-        entry.first->second.impl        = impl;
-        // bound to all - XXX-0
-        return VALID;
+        return &entry.first->second;
       }
-      return INVALID;
+      return nullptr;
     }
 
     t_validity update_observer(r_err err, R_observer_name name,
@@ -624,7 +675,7 @@ namespace tracer
       if (entry != std::cend(observers_)) {
         entry->second.info.name   = name;
         entry->second.info.params = params;
-        entry->second.impl        = impl;
+        entry->second.impl        = impl; // impl stays for live
         // bound to all - XXX-0
         return VALID;
       }
@@ -840,15 +891,20 @@ namespace tracer
       t_item_& item = any.ref<t_item_>();
       t_data_::t_tracer_* data = data_.is_tracer(item.id);
       if (data) {
-        t_line line = make_line(data_.params.textline_len,
-                                data_.params.time_mode, item);
+        t_line line = make_line(data_.params.line_max,
+                                data_.params.time_mode,
+                                item.time,
+                                data->info.name,
+                                item.point,
+                                to_name(data->info.params.level),
+                                item.text);
         switch (data_.params.mode) {
           case OFF: {
           } break;
 
           case ALL: {
             if (data_.params.to_terminal)
-              printf("line = %s", get(line.c_str()));
+              printf("line = %s\n", get(line.c_str()));
             if (data_.params.to_observers)
               for (auto oberver_impl : *data->impls)
                 if (item.level <= oberver_impl->info->params.level)
@@ -858,7 +914,7 @@ namespace tracer
           case CONFIG: {
             if (item.level <= data->info.params.level) {
               if (data_.params.to_terminal)
-                printf("line = %s", get(line.c_str()));
+                printf("line = %s\n", get(line.c_str()));
               if (data_.params.to_observers)
                 for (auto oberver_impl : *data->impls)
                   if (item.level <= oberver_impl->info->params.level)
@@ -898,7 +954,7 @@ namespace tracer
         data_.params.to_observers = cmd.params.to_observers;
         data_.params.time_mode    = cmd.params.time_mode;
         data_.params.mode         = cmd.params.mode;
-        data_.params.textline_len = cmd.params.textline_len;
+        data_.params.line_max     = cmd.params.line_max;
       } else
         err = E_XXX;
     }
@@ -975,7 +1031,10 @@ namespace tracer
 
     t_void process(tracing::t_err err, r_create_observer_cmd_ cmd) noexcept {
       printf("thread create_observer_cmd received\n");
-      // XXX-2
+       auto observer = data_.add_observer(err, cmd.name, cmd.params);
+       if (observer) {
+         observer->impl = new t_observer_logger_impl_(&observer->info);
+       }
     }
 
     t_void process(tracing::t_err err, r_destroy_observer_cmd_ cmd) noexcept {
@@ -1006,7 +1065,7 @@ namespace tracer
 
     t_void process(tracing::t_err err, r_bind_tracer_cmd_ cmd) noexcept {
       printf("thread bind_tracer_cmd received\n");
-      // XXX-8
+      cmd.found = data_.bind_tracer(err, cmd.name, cmd.tracer_name);
     }
 
     t_void process(tracing::t_err err, r_bind_tracers_cmd_ cmd) noexcept {
@@ -1393,19 +1452,20 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-    t_validity shared_trace(t_level level, R_textline line) {
-      return ref(shared_tr_).post(level, line);
+    t_validity shared_trace(t_level level, R_text text) {
+      return ref(shared_tr_).post(level, text);
     }
 
-    t_validity shared_trace(t_err err, t_level level, R_textline line) {
-      return ref(shared_tr_).post(err, level, line);
+    t_validity shared_trace(t_err err, t_level level, R_text text) {
+      return ref(shared_tr_).post(err, level, text);
     }
 
-    t_validity post(R_id id, t_level level, R_textline line) {
+    t_validity post(R_id id, t_level level, R_tracer_name name, R_text text) {
       t_que_chain chain = que_client_.acquire();
       if (get(chain.cnt)) {
         t_item_& item = chain.head->ref().emplace<t_item_>(t_any_user{0L});
-        item.line  = line;
+        item.point = name;
+        item.text  = text;
         item.level = level;
         item.id    = id;
         item.time  = clock::realtime_now();
@@ -1415,11 +1475,13 @@ namespace tracer
       return INVALID;
     }
 
-    t_validity post(t_err& err, R_id id, t_level level, R_textline line) {
+    t_validity post(t_err& err, R_id id, t_level level,
+                    R_tracer_name name, R_text text) {
       t_que_chain chain = que_client_.acquire(err);
       if (!err) {
         t_item_& item = chain.head->ref().emplace<t_item_>(t_any_user{0L});
-        item.line  = line;
+        item.point = name;
+        item.text  = text;
         item.level = level;
         item.id    = id;
         item.time  = clock::realtime_now();
@@ -1429,11 +1491,13 @@ namespace tracer
       return INVALID;
     }
 
-    t_validity waitable_post(R_id id, t_level level, R_textline line) {
+    t_validity waitable_post(R_id id, t_level level,
+                            R_tracer_name name, R_text text) {
       t_que_chain chain = que_client_.waitable_acquire();
       if (get(chain.cnt)) {
         t_item_& item = chain.head->ref().emplace<t_item_>(t_any_user{0L});
-        item.line  = line;
+        item.point = name;
+        item.text  = text;
         item.level = level;
         item.id    = id;
         item.time  = clock::realtime_now();
@@ -1444,11 +1508,12 @@ namespace tracer
     }
 
     t_validity waitable_post(t_err& err, R_id id, t_level level,
-                             R_textline line) {
+                             R_tracer_name name, R_text text) {
       t_que_chain chain = que_client_.waitable_acquire(err);
       if (!err) {
         t_item_& item = chain.head->ref().emplace<t_item_>(t_any_user{0L});
-        item.line  = line;
+        item.point = name;
+        item.text  = text;
         item.level = level;
         item.id    = id;
         item.time  = clock::realtime_now();
@@ -1506,32 +1571,32 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_validity t_point::post(t_level level, R_textline line) const {
+  t_validity t_point::post(t_level level, R_text text) const {
     if (tracing::tr_)
-      return tracing::tr_->post(id_, level, line);
+      return tracing::tr_->post(id_, level, name_, text);
     return INVALID;
   }
 
-  t_validity t_point::post(t_err err, t_level level, R_textline line) const {
+  t_validity t_point::post(t_err err, t_level level, R_text text) const {
     T_ERR_GUARD(err) {
       if (tracing::tr_)
-        return tracing::tr_->post(err, id_, level, line);
+        return tracing::tr_->post(err, id_, level, name_, text);
       err = E_XXX;
     }
     return INVALID;
   }
 
-  t_validity t_point::waitable_post(t_level level, R_textline line) const {
+  t_validity t_point::waitable_post(t_level level, R_text text) const {
     if (tracing::tr_)
-      return tracing::tr_->waitable_post(id_, level, line);
+      return tracing::tr_->waitable_post(id_, level, name_, text);
     return INVALID;
   }
 
   t_validity t_point::waitable_post(t_err err, t_level level,
-                                    R_textline line) const {
+                                    R_text text) const {
     T_ERR_GUARD(err) {
       if (tracing::tr_)
-        return tracing::tr_->waitable_post(err, id_, level, line);
+        return tracing::tr_->waitable_post(err, id_, level, name_, text);
       err = E_XXX;
     }
     return INVALID;
@@ -1573,16 +1638,16 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_validity shared_trace(t_level level, R_textline line) {
+  t_validity shared_trace(t_level level, R_text text) {
     if (tracing::tr_)
-      return tracing::tr_->shared_trace(level, line);
+      return tracing::tr_->shared_trace(level, text);
     return INVALID;
   }
 
-  t_validity shared_trace(t_err err, t_level level, R_textline line) {
+  t_validity shared_trace(t_err err, t_level level, R_text text) {
     T_ERR_GUARD(err) {
       if (tracing::tr_)
-        return tracing::tr_->shared_trace(err, level, line);
+        return tracing::tr_->shared_trace(err, level, text);
       err = E_XXX;
     }
     return INVALID;
@@ -1613,7 +1678,7 @@ namespace tracer
   }
 
   t_level default_observer_level() {
-    return NOTICE;
+    return DEBUG;
   }
 
 ///////////////////////////////////////////////////////////////////////////////

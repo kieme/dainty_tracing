@@ -110,6 +110,7 @@ namespace tracer
 
   enum  t_date_tag_ {};
   using t_date = named::string::t_string<t_date_tag_, 24>;
+  using R_date = named::t_prefix<t_date>::R_;
 
   inline t_date make_date(t_time_mode time_mode, const t_time& time) {
     static t_time prev;
@@ -129,8 +130,7 @@ namespace tracer
           date.assign(FMT, "%lld.%.9ld", 0LL, 0L);
       } break;
       case DATE:
-        date.assign(FMT, "%lld.%.9ld", (long long)to_(time).tv_sec,
-                                        to_(time).tv_nsec);
+        date += "date:...."; //XXX
         break;
     }
     prev = time;
@@ -142,12 +142,9 @@ namespace tracer
   enum  t_line_tag_ { };
   using t_line = named::string::t_string<t_line_tag_, 0>; // XXX truncate
 
-  t_line make_line(t_n max, t_n cnt, t_time_mode time_mode, const t_time& time,
-                   R_tracer_name& name, R_tracer_name point, R_levelname level,
-                   R_text text) {
+  t_line make_line(t_n max, t_n cnt, R_tracer_name& name, R_tracer_name point,
+                   R_levelname level, R_text text) {
     t_line line(max);
-    line += make_date(time_mode, time);
-    line += " ";
     line += name;
     line += " ";
     if (point == name)
@@ -158,7 +155,7 @@ namespace tracer
       line += ") ";
     }
     if (get(cnt) != 1)
-      line.append(FMT, "(cnt=%u) ", get(cnt));
+      line.append(FMT, "cnt=%u ", get(cnt));
     line += text;
     return line;
   }
@@ -174,7 +171,7 @@ namespace tracer
     }
 
     virtual ~t_observer_impl_() { };
-    virtual t_void notify(R_line) = 0;
+    virtual t_void notify(R_date, R_line) = 0;
   };
 
   using p_observer_impl_  = named::t_prefix<t_observer_impl_>::p_;
@@ -190,10 +187,9 @@ namespace tracer
     ~t_observer_logger_impl_() {
     }
 
-    virtual t_void notify(R_line line) override {
-      printf("observer[%s]: %s", get(info->name.c_str()), get(line.c_str()));
-      ::syslog(LOG_WARNING, "%s: %s", get(info->name.c_str()),
-                                      get(line.c_str()));
+    virtual t_void notify(R_date, R_line line) override {
+      ::syslog(LOG_WARNING, "[%s] %s", get(info->name.c_str()),
+                                       get(line.c_str()));
     }
   };
 
@@ -866,24 +862,28 @@ namespace tracer
         err.print();
         err.clear();
       }
+
       return nullptr;
     }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-    virtual t_void may_reorder_events (r_event_infos) override {
-      // not required
+    virtual t_void may_reorder_events (r_event_infos infos) override {
+      //printf("events received = %lu\n", infos.size());
     }
 
     virtual t_void notify_event_remove(r_event_info) override {
+      printf("remove event which should never happen!!\n");
       // not required
     }
 
     virtual t_quit notify_timeout(t_usec) override {
+      printf("timeout that should never happen!!\n");
       return true; // not required
     }
 
     virtual t_quit notify_error(t_errn)  override {
+      printf("error in event handling!!\n");
       return true; // die
     }
 
@@ -893,10 +893,9 @@ namespace tracer
       t_item_& item = entry.any.ref<t_item_>();
       t_data_::t_tracer_* data = data_.is_tracer(item.id);
       if (data) {
+        t_date date = make_date(data_.params.time_mode, item.time);
         t_line line = make_line(data_.params.line_max,
                                 entry.cnt,
-                                data_.params.time_mode,
-                                item.time,
                                 data->info.name,
                                 item.point,
                                 to_name(data->info.params.level),
@@ -907,24 +906,26 @@ namespace tracer
 
           case ALL: {
             if (data_.params.to_terminal)
-              printf("line = %s\n", get(line.c_str()));
+              printf("%s %s\n", get(date.c_str()), get(line.c_str()));
             if (data_.params.to_observers)
               for (auto oberver_impl : *data->impls)
                 if (item.level <= oberver_impl->info->params.level)
-                  oberver_impl->notify(line);
+                  oberver_impl->notify(date, line);
           } break;
 
           case CONFIG: {
             if (item.level <= data->info.params.level) {
               if (data_.params.to_terminal)
-                printf("line = %s\n", get(line.c_str()));
+                printf("%s %s\n", get(date.c_str()), get(line.c_str()));
               if (data_.params.to_observers)
                 for (auto oberver_impl : *data->impls)
                   if (item.level <= oberver_impl->info->params.level)
-                    oberver_impl->notify(line);
+                    oberver_impl->notify(date, line);
             }
           } break;
         }
+      } else {
+        printf("tracer(%s) died already\n", get(item.point.c_str()));
       }
     }
 

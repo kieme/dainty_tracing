@@ -103,7 +103,7 @@ namespace tracer
 
   inline
   t_bool operator==(R_item_ lh, R_item_ rh) {
-    return lh.text == rh.text;
+    return lh.text == rh.text && lh.point == rh.point;
   }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -142,7 +142,7 @@ namespace tracer
   enum  t_line_tag_ { };
   using t_line = named::string::t_string<t_line_tag_, 0>; // XXX truncate
 
-  t_line make_line(t_n max, t_time_mode time_mode, const t_time& time,
+  t_line make_line(t_n max, t_n cnt, t_time_mode time_mode, const t_time& time,
                    R_tracer_name& name, R_tracer_name point, R_levelname level,
                    R_text text) {
     t_line line(max);
@@ -157,6 +157,8 @@ namespace tracer
       line += point;
       line += ") ";
     }
+    if (get(cnt) != 1)
+      line.append(FMT, "(cnt=%u) ", get(cnt));
     line += text;
     return line;
   }
@@ -887,11 +889,12 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-    t_void process_item(t_any&& any) {
-      t_item_& item = any.ref<t_item_>();
+    t_void process_item(waitable_chained_queue::t_entry& entry) {
+      t_item_& item = entry.any.ref<t_item_>();
       t_data_::t_tracer_* data = data_.is_tracer(item.id);
       if (data) {
         t_line line = make_line(data_.params.line_max,
+                                entry.cnt,
                                 data_.params.time_mode,
                                 item.time,
                                 data->info.name,
@@ -927,7 +930,7 @@ namespace tracer
 
     t_void process_chain(t_chain& chain) {
       for (auto item = chain.head; item; item = item->next())
-        process_item(std::move(item->ref()));
+        process_item(item->ref());
     }
 
     virtual t_void async_process(t_chain chain) noexcept override {
@@ -1473,13 +1476,13 @@ namespace tracer
     t_validity post(R_id id, t_level level, R_tracer_name name, R_text text) {
       t_que_chain chain = que_client_.acquire();
       if (get(chain.cnt)) {
-        t_item_& item = chain.head->ref().emplace<t_item_>(t_any_user{0L});
+        t_item_& item = chain.head->ref().any.emplace<t_item_>(t_any_user{0L});
         item.point = name;
         item.text  = text;
         item.level = level;
         item.id    = id;
         item.time  = clock::realtime_now();
-        return level > CRITICAL ? que_client_.insert(chain) :
+        return level > CRITICAL ? que_client_.compared_insert(chain) :
                                   do_chain(chain);
       }
       return INVALID;
@@ -1489,14 +1492,14 @@ namespace tracer
                     R_tracer_name name, R_text text) {
       t_que_chain chain = que_client_.acquire(err);
       if (!err) {
-        t_item_& item = chain.head->ref().emplace<t_item_>(t_any_user{0L});
+        t_item_& item = chain.head->ref().any.emplace<t_item_>(t_any_user{0L});
         item.point = name;
         item.text  = text;
         item.level = level;
         item.id    = id;
         item.time  = clock::realtime_now();
-        return level > CRITICAL ?  que_client_.insert(err, chain) :
-                                   do_chain(err, chain);
+        return level > CRITICAL ? que_client_.compared_insert(err, chain) :
+                                  do_chain(err, chain);
       }
       return INVALID;
     }
@@ -1505,14 +1508,14 @@ namespace tracer
                             R_tracer_name name, R_text text) {
       t_que_chain chain = que_client_.waitable_acquire();
       if (get(chain.cnt)) {
-        t_item_& item = chain.head->ref().emplace<t_item_>(t_any_user{0L});
+        t_item_& item = chain.head->ref().any.emplace<t_item_>(t_any_user{0L});
         item.point = name;
         item.text  = text;
         item.level = level;
         item.id    = id;
         item.time  = clock::realtime_now();
-        return level > CRITICAL ?  que_client_.insert(chain) :
-                                   do_chain(chain);
+        return level > CRITICAL ? que_client_.compared_insert(chain) :
+                                  do_chain(chain);
       }
       return INVALID;
     }
@@ -1521,13 +1524,13 @@ namespace tracer
                              R_tracer_name name, R_text text) {
       t_que_chain chain = que_client_.waitable_acquire(err);
       if (!err) {
-        t_item_& item = chain.head->ref().emplace<t_item_>(t_any_user{0L});
+        t_item_& item = chain.head->ref().any.emplace<t_item_>(t_any_user{0L});
         item.point = name;
         item.text  = text;
         item.level = level;
         item.id    = id;
         item.time  = clock::realtime_now();
-        return level > CRITICAL ?  que_client_.insert(err, chain) :
+        return level > CRITICAL ?  que_client_.compared_insert(err, chain) :
                                    do_chain(err, chain);
       }
       return INVALID;
@@ -1583,14 +1586,18 @@ namespace tracer
 
   t_validity t_point::post(t_level level, R_text text) const {
     if (tracing::tr_)
-      return tracing::tr_->post(id_, level, name_, text);
+      return level < NOTICE ?
+               tracing::tr_->waitable_post(id_, level, name_, text) :
+               tracing::tr_->post         (id_, level, name_, text);
     return INVALID;
   }
 
   t_validity t_point::post(t_err err, t_level level, R_text text) const {
     T_ERR_GUARD(err) {
       if (tracing::tr_)
-        return tracing::tr_->post(err, id_, level, name_, text);
+        return level < NOTICE ?
+          tracing::tr_->waitable_post(err, id_, level, name_, text) :
+          tracing::tr_->post         (err, id_, level, name_, text);
       err = E_XXX;
     }
     return INVALID;

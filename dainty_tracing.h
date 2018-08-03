@@ -139,8 +139,8 @@ namespace tracing
   class t_observer_params {
   public:
     t_level  level;
-    t_bool   bind_to_all;
-    t_output output;
+    t_bool   bind_to_all;         // not allowed to change after creation
+    t_output output;              // not allowed to change after creation
 
     t_observer_params(t_level  _level       = default_observer_level(),
                       t_bool   _bind_to_all = false,
@@ -193,8 +193,8 @@ namespace tracing
 
   class t_params {
   public:
-    t_n         queuesize;
-    t_n         max_tracers;
+    t_n         queuesize;    // not allowed to change after startup
+    t_n         max_tracers;  // not allowed to change after startup
     t_bool      to_terminal;
     t_bool      to_observers;
     t_time_mode time_mode;
@@ -217,13 +217,13 @@ namespace tracing
              t_time_mode _time_mode,
              t_mode      _mode,
              t_n         _line_max)
-      : queuesize    (_queuesize),
-        max_tracers  (_max_tracers),
-        to_terminal  (_to_terminal),
-        to_observers (_to_observers),
-        time_mode    (_time_mode),
-        mode         (_mode),
-        line_max     (_line_max) {
+      : queuesize   (_queuesize),
+        max_tracers (_max_tracers),
+        to_terminal (_to_terminal),
+        to_observers(_to_observers),
+        time_mode   (_time_mode),
+        mode        (_mode),
+        line_max    (_line_max) {
     }
   };
 
@@ -235,7 +235,7 @@ namespace tracing
 
   t_bool     is_running();
   t_validity start     (t_err, P_params = nullptr);
-  t_void     destroy   ();
+  //t_void     destroy   ();
   t_validity update    (t_err, R_params);
   t_validity fetch     (t_err, r_params);
 

@@ -140,7 +140,7 @@ namespace tracer
 ///////////////////////////////////////////////////////////////////////////////
 
   enum  t_line_tag_ { };
-  using t_line = named::string::t_string<t_line_tag_, 0>; // XXX truncate
+  using t_line = named::string::t_string<t_line_tag_, 120>;
 
   t_line make_line(t_n max, t_n cnt, R_tracer_name& name, R_tracer_name point,
                    R_levelname level, R_text text) {

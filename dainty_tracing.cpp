@@ -142,9 +142,9 @@ namespace tracer
   enum  t_line_tag_ { };
   using t_line = named::string::t_string<t_line_tag_, 120>;
 
-  t_line make_line(t_n max, t_n cnt, R_tracer_name& name, R_tracer_name point,
+  t_line make_line(t_n cnt, R_tracer_name& name, R_tracer_name point,
                    R_levelname level, R_text text) {
-    t_line line(max);
+    t_line line;
     line += name;
     line += " ";
     if (point == name)
@@ -165,13 +165,8 @@ namespace tracer
 
   class t_observer_impl_ {
   public:
-    t_observer_info* info;
-
-    t_observer_impl_(t_observer_info* _info) : info(_info) {
-    }
-
     virtual ~t_observer_impl_() { };
-    virtual t_void notify(R_date, R_line) = 0;
+    virtual t_void notify(R_observer_name, R_date, R_line) = 0;
   };
 
   using p_observer_impl_  = named::t_prefix<t_observer_impl_>::p_;
@@ -182,14 +177,8 @@ namespace tracer
 
   class t_observer_logger_impl_ : public t_observer_impl_ {
   public:
-    t_observer_logger_impl_(t_observer_info* _info) : t_observer_impl_{_info} {
-    }
-    ~t_observer_logger_impl_() {
-    }
-
-    virtual t_void notify(R_date, R_line line) override {
-      ::syslog(LOG_WARNING, "[%s] %s", get(info->name.c_str()),
-                                       get(line.c_str()));
+    virtual t_void notify(R_observer_name name, R_date, R_line line) override {
+      ::syslog(LOG_WARNING, "[%s] %s", get(name.c_str()), get(line.c_str()));
     }
   };
 
@@ -540,23 +529,35 @@ namespace tracer
   public:
     using r_err = named::t_prefix<tracing::t_err>::r_;
 
-    struct t_tracer_ {
-      t_tracer_info     info;
-      p_observer_impls_ impls = nullptr;
-      t_tracer_id       id;
-    };
-
-    using p_tracer_ = named::t_prefix<t_tracer_>::p_;
-
-    struct t_tracer_lk_ {
-      p_tracer_         data = nullptr;
-      t_observer_impls_ impls;
-    };
-
-    struct t_observer_ {
+    struct t_observer_data_ {
       t_observer_info  info;
       p_observer_impl_ impl = nullptr;
     };
+
+    using p_observer_data_  = named::t_prefix<t_observer_data_>::p_;
+    using t_observers_data_ = std::vector<p_observer_data_>;
+    using p_observers_data_ = named::t_prefix<t_observers_data_>::p_;
+
+    struct t_tracer_data_ {
+      t_tracer_info     info;
+      p_observers_data_ observers = nullptr;
+      t_tracer_id       id;
+    };
+
+    using p_tracer_data_ = named::t_prefix<t_tracer_data_>::p_;
+
+    struct t_tracer_lk_data_ {
+      p_tracer_data_    data = nullptr;
+      t_observers_data_ observers;
+    };
+
+    using t_freelist_        = freelist::t_freelist<t_tracer_data_>;
+    using t_tracers_         = std::map<t_tracer_name, t_tracer_lk_data_>;
+    using t_observers_       = std::map<t_observer_name, t_observer_data_>;
+    using t_tracers_value_   = t_tracers_::value_type;
+    using t_observers_value_ = t_observers_::value_type;
+
+///////////////////////////////////////////////////////////////////////////////
 
     t_params params;
 
@@ -569,14 +570,14 @@ namespace tracer
       t_tracer_id id;
       if (!freelist_.is_full()) {
         static t_tracer_id::t_seq seq = 0;
-        auto tracer = tracers_.insert(t_tracers_::value_type(name,
-                                                             t_tracer_lk_()));
+        auto tracer = tracers_.insert(t_tracers_value_(name,
+                                                       t_tracer_lk_data_()));
         if (tracer.second) {
           auto result = freelist_.insert();
           set_(result.ptr->id, ++seq, result.id);
           result.ptr->info.name   = name;
           result.ptr->info.params = params;
-          result.ptr->impls       = &tracer.first->second.impls;
+          result.ptr->observers   = &tracer.first->second.observers;
           tracer.first->second.data = result.ptr;
           id = result.ptr->id;
           // bound to all log books with XXX-0
@@ -586,7 +587,7 @@ namespace tracer
             set_(result.ptr->id, ++seq, result.id);
             result.ptr->info.name   = name;
             result.ptr->info.params = params;
-            result.ptr->impls       = &tracer.first->second.impls;
+            result.ptr->observers   = &tracer.first->second.observers;
             tracer.first->second.data = result.ptr;
             id = result.ptr->id;
             // bound to all log books with XXX-0
@@ -639,14 +640,14 @@ namespace tracer
       return INVALID;
     }
 
-    t_tracer_* is_tracer(R_tracer_name name) {
+    p_tracer_data_ is_tracer(R_tracer_name name) {
       auto tracer = tracers_.find(name);
       if (tracer != tracers_.end())
         return tracer->second.data;
       return nullptr;
     }
 
-    t_tracer_* is_tracer(t_tracer_id id) {
+    p_tracer_data_ is_tracer(t_tracer_id id) {
       auto tracer = freelist_.get(get_(id));
       if (tracer && tracer->id == id) {
         return tracer;
@@ -654,13 +655,15 @@ namespace tracer
       return nullptr;
     }
 
-    t_observer_* add_observer(r_err err, R_observer_name name,
-                              R_observer_params params) {
-      auto entry = observers_.insert(t_observers_::value_type(name,
-                                                              t_observer_()));
+    p_observer_data_ add_observer(r_err err, R_observer_name name,
+                                  R_observer_params params,
+                                  p_observer_impl_ impl) {
+      auto entry = observers_.insert(t_observers_value_(name,
+                                                        t_observer_data_()));
       if (entry.second) {
         entry.first->second.info.name   = name;
-        entry.first->second.info.params = params;
+        entry.first->second.info.params = params; //XXX impl must be added
+        entry.first->second.impl        = impl;
         return &entry.first->second;
       }
       return nullptr;
@@ -684,23 +687,23 @@ namespace tracer
       p_observer_impl_ impl = nullptr;
       auto entry = observers_.find(name);
       if (entry != std::cend(observers_)) {
-        impl = entry->second.impl;
+        auto observer = &entry->second;
         for (auto&& tracer_name : entry->second.info.tracers) {
           auto tracer = tracers_.find(tracer_name);
           if (tracer != std::cend(tracers_)) {
-            tracer->second.impls.erase(
-              std::find(std::begin(tracer->second.impls),
-                        std::end  (tracer->second.impls), impl));
-            if (tracer->second.impls.empty() && !tracer->second.data) {
+            tracer->second.observers.erase(
+              std::find(std::begin(tracer->second.observers),
+                        std::end  (tracer->second.observers), observer));
+            if (tracer->second.observers.empty() && !tracer->second.data)
               tracers_.erase(tracer);
-            }
           }
         }
+        observers_.erase(entry);
       }
       return impl;
     }
 
-    t_observer_* is_observer(R_observer_name name) {
+    p_observer_data_ is_observer(R_observer_name name) {
       auto entry = observers_.find(name);
       if (entry != std::cend(observers_))
         return &entry->second;
@@ -713,17 +716,17 @@ namespace tracer
       if (observer) {
          auto tracer = is_tracer(tracer_name);
          if (tracer) {
-           if (std::find(std::cbegin(*tracer->impls),
-                         std::cend  (*tracer->impls), observer->impl) ==
-                std::end(*tracer->impls)) {
-             tracer->impls->push_back(observer->impl);
+           if (std::find(std::cbegin(*tracer->observers),
+                         std::cend  (*tracer->observers), observer) ==
+                std::end(*tracer->observers)) {
+             tracer->observers->push_back(observer);
              return true;
            }
          } else {
-           auto tracer = tracers_.insert(t_tracers_::value_type(tracer_name,
-                                                                t_tracer_lk_()));
+           auto tracer = tracers_.insert(t_tracers_value_(tracer_name,
+                                                          t_tracer_lk_data_()));
            if (tracer.second) {
-             tracer.first->second.impls.push_back(observer->impl);
+             tracer.first->second.observers.push_back(observer);
              return true;
            } else
              err = E_XXX;
@@ -740,11 +743,11 @@ namespace tracer
         t_bool bound = false;
         for (auto&& tracer : tracers_) {
           if (tracer.first.match(wildcard_name)) {
-            if (std::find(std::cbegin(tracer.second.impls),
-                          std::cend  (tracer.second.impls), observer->impl) ==
-                std::end(tracer.second.impls)) {
+            if (std::find(std::cbegin(tracer.second.observers),
+                          std::cend  (tracer.second.observers), observer) ==
+                std::end(tracer.second.observers)) {
               observer->info.tracers.push_back(tracer.first);
-              tracer.second.impls.push_back(observer->impl);
+              tracer.second.observers.push_back(observer);
               bound = true;
             }
           }
@@ -765,9 +768,9 @@ namespace tracer
           t_tracer_name& tracer_name = *i;
           if (tracer_name.match(wildcard_name)) {
             auto tracer = tracers_.find(tracer_name);
-            tracer->second.impls.erase(
-              std::find(std::cbegin(tracer->second.impls),
-                        std::cend  (tracer->second.impls), observer->impl));
+            tracer->second.observers.erase(
+              std::find(std::cbegin(tracer->second.observers),
+                        std::cend  (tracer->second.observers), observer));
             observer->info.tracers.erase(i);
             unbound = true;
           } else
@@ -793,18 +796,14 @@ namespace tracer
                                  r_observer_names observer_names) {
       auto tracer = is_tracer(name);
       if (tracer) {
-        for (auto impl : *tracer->impls)
-          observer_names.push_back(impl->info->name);
+        for (auto observer : *tracer->observers)
+          observer_names.push_back(observer->info.name);
         return !observer_names.empty();
       }
       return false;
     }
 
   private:
-    using t_freelist_  = freelist::t_freelist<t_tracer_>;
-    using t_tracers_   = std::map<t_tracer_name, t_tracer_lk_>;
-    using t_observers_ = std::map<t_observer_name, t_observer_>;
-
     t_freelist_  freelist_;
     t_tracers_   tracers_;
     t_observers_ observers_;
@@ -890,11 +889,11 @@ namespace tracer
 ///////////////////////////////////////////////////////////////////////////////
 
     t_void process_item(waitable_chained_queue::t_entry& entry) {
-      t_item_& item = entry.any.ref<t_item_>();
-      t_data_::t_tracer_* data = data_.is_tracer(item.id);
+      auto& item = entry.any.ref<t_item_>();
+      auto  data = data_.is_tracer(item.id);
       if (data) {
         t_date date = make_date(data_.params.time_mode, item.time);
-        t_line line = make_line(data_.params.line_max,
+        t_line line = make_line(//data_.params.line_max, XXX
                                 entry.cnt,
                                 data->info.name,
                                 item.point,
@@ -908,9 +907,9 @@ namespace tracer
             if (data_.params.to_terminal)
               printf("%s %s\n", get(date.c_str()), get(line.c_str()));
             if (data_.params.to_observers)
-              for (auto oberver_impl : *data->impls)
-                if (item.level <= oberver_impl->info->params.level)
-                  oberver_impl->notify(date, line);
+              for (auto observer : *data->observers)
+                if (item.level <= observer->info.params.level)
+                  observer->impl->notify(observer->info.name, date, line);
           } break;
 
           case CONFIG: {
@@ -918,9 +917,9 @@ namespace tracer
               if (data_.params.to_terminal)
                 printf("%s %s\n", get(date.c_str()), get(line.c_str()));
               if (data_.params.to_observers)
-                for (auto oberver_impl : *data->impls)
-                  if (item.level <= oberver_impl->info->params.level)
-                    oberver_impl->notify(date, line);
+                for (auto observer : *data->observers)
+                  if (item.level <= observer->info.params.level)
+                    observer->impl->notify(observer->info.name, date, line);
             }
           } break;
         }
@@ -1035,19 +1034,22 @@ namespace tracer
 
     t_void process(tracing::t_err err, r_create_observer_cmd_ cmd) noexcept {
       printf("thread create_observer_cmd received\n");
-      auto observer = data_.add_observer(err, cmd.name, cmd.params);
-      if (observer) {
-        switch (cmd.params.output) {
-          case LOGGER:
-            observer->impl = new t_observer_logger_impl_(&observer->info);
-            break;
-          case FTRACE:
-            err = E_XXX; // not implemented
-            break;
-          case SHM:
-            err = E_XXX; // not implemented
-            break;
-        }
+      p_observer_impl_ impl = nullptr;
+      switch (cmd.params.output) {
+        case LOGGER:
+          impl = new t_observer_logger_impl_;
+          break;
+        case FTRACE:
+          err = E_XXX; // not implemented
+          break;
+        case SHM:
+          err = E_XXX; // not implemented
+          break;
+      }
+      if (!err) {
+        auto observer = data_.add_observer(err, cmd.name, cmd.params, impl);
+        if (!observer)
+          delete impl;
       }
     }
 

@@ -33,6 +33,8 @@ namespace dainty
 {
 namespace tracing
 {
+namespace err
+{
   enum t_err_codes {
     E_XXX = 1
   };
@@ -40,6 +42,7 @@ namespace tracing
   oops::t_def err_what(oops::t_id);
 
   using t_err = oops::t_oops<err_what, t_err_codes>;
+}
 }
 }
 

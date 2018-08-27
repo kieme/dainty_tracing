@@ -35,6 +35,7 @@ namespace dainty
 namespace tracing
 {
   using named::t_n;
+  using tracer::t_err;
   using tracer::t_string;
   using tracer::t_void;
   using tracer::t_bool;
@@ -201,13 +202,13 @@ namespace tracing
     t_mode      mode;
     t_n         line_max;
 
-    t_params() : queuesize    (4000),
-                 max_tracers  (100),
-                 to_terminal  (true),
-                 to_observers (true),
-                 time_mode    (NS_DIFF),
-                 mode         (ALL),
-                 line_max     (100) {
+    t_params() : queuesize   (4000),
+                 max_tracers (100),
+                 to_terminal (true),
+                 to_observers(true),
+                 time_mode   (NS_DIFF),
+                 mode        (ALL),
+                 line_max    (100) {
     }
 
     t_params(t_n         _queuesize,
@@ -235,7 +236,6 @@ namespace tracing
 
   t_bool     is_running();
   t_validity start     (t_err, P_params = nullptr);
-  //t_void     destroy   ();
   t_validity update    (t_err, R_params);
   t_validity fetch     (t_err, r_params);
 

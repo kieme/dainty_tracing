@@ -59,6 +59,7 @@ namespace tracing
 {
 namespace tracer
 {
+  using err::t_err;
   using named::string::t_string;
   using named::t_void;
   using named::t_bool;

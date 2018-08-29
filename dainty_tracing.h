@@ -227,7 +227,6 @@ namespace tracing
         line_max    (_line_max) {
     }
   };
-
   using P_params = named::t_prefix<t_params>::P_;
   using r_params = named::t_prefix<t_params>::r_;
   using R_params = named::t_prefix<t_params>::R_;

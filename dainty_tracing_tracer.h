@@ -116,7 +116,6 @@ namespace tracer
         credit(_credit) {
     }
   };
-
   using r_params = named::t_prefix<t_params>::r_;
   using R_params = named::t_prefix<t_params>::R_;
 
@@ -143,7 +142,6 @@ namespace tracer
     t_seq      seq_;
     t_impl_id_ id_;
   };
-
   using R_id = named::t_prefix<t_id>::R_;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -176,7 +174,6 @@ namespace tracer
     t_id   id_;
     t_name name_;
   };
-
   using r_point = named::t_prefix<t_point>::r_;
   using R_point = named::t_prefix<t_point>::R_;
   using p_point = named::t_prefix<t_point>::p_;
@@ -211,7 +208,6 @@ namespace tracer
 
     t_point point_;
   };
-
   using r_tracer = named::t_prefix<t_tracer>::r_;
   using R_tracer = named::t_prefix<t_tracer>::R_;
   using x_tracer = named::t_prefix<t_tracer>::x_;

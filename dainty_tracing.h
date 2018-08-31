@@ -194,8 +194,8 @@ namespace tracing
 
   class t_params {
   public:
-    t_n         queuesize;    // not allowed to change after startup
-    t_n         max_tracers;  // not allowed to change after startup
+    t_n         queuesize;
+    t_n         max_tracers;
     t_bool      to_terminal;
     t_bool      to_observers;
     t_time_mode time_mode;

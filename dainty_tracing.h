@@ -233,42 +233,43 @@ namespace tracing
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_bool     is_running();
-  t_validity start     (t_err, P_params = nullptr);
-  t_validity update    (t_err, R_params);
-  t_validity fetch     (t_err, r_params);
+  t_bool is_running();
+
+  t_void start (t_err, P_params = nullptr);
+  t_void update(t_err, R_params);
+  t_void fetch (t_err, r_params);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_tracer   make_tracer  (t_err, R_tracer_name);
-  t_tracer   make_tracer  (t_err, R_tracer_name, R_tracer_params);
-  t_validity update_tracer(t_err, R_tracer_name, R_tracer_params);
-  t_bool     update_tracer(t_err, R_wildcard_name, t_level);
-  t_bool     fetch_tracer (t_err, R_tracer_name, r_tracer_params);
-  t_bool     fetch_tracer (t_err, R_tracer_name, r_tracer_info,
-                                  t_bool clearstats = false);
-  t_bool     fetch_tracers(t_err, r_tracer_infos, t_bool clearstats = false);
+  t_tracer make_tracer  (t_err, R_tracer_name);
+  t_tracer make_tracer  (t_err, R_tracer_name, R_tracer_params);
+  t_void   update_tracer(t_err, R_tracer_name, R_tracer_params);
+  t_void   update_tracer(t_err, R_wildcard_name, t_level);
+  t_bool   is_tracer    (t_err, R_tracer_name, r_tracer_params);
+  t_bool   is_tracer    (t_err, R_tracer_name, r_tracer_info,
+                                t_bool clearstats = false);
+  t_void   fetch_tracers(t_err, r_tracer_infos, t_bool clearstats = false);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_validity create_observer (t_err, R_observer_name);
-  t_validity create_observer (t_err, R_observer_name, R_observer_params);
-  t_validity destroy_observer(t_err, R_observer_name);
-  t_validity update_observer (t_err, R_observer_name, R_observer_params);
-  t_bool     fetch_observer  (t_err, R_observer_name, r_observer_params);
-  t_bool     fetch_observer  (t_err, R_observer_name, r_observer_info,
-                                     t_bool clearstats = false);
-  t_bool     fetch_observers (t_err, r_observer_infos,
-                                     t_bool clearstats = false);
+  t_void create_observer (t_err, R_observer_name);
+  t_void create_observer (t_err, R_observer_name, R_observer_params);
+  t_void destroy_observer(t_err, R_observer_name);
+  t_void update_observer (t_err, R_observer_name, R_observer_params);
+  t_bool is_observer     (t_err, R_observer_name, r_observer_params);
+  t_bool is_observer     (t_err, R_observer_name, r_observer_info,
+                                 t_bool clearstats = false);
+  t_void fetch_observers (t_err, r_observer_infos,
+                                 t_bool clearstats = false);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_bool   bind_tracer        (t_err, R_observer_name, R_tracer_name);
-  t_bool   bind_tracers       (t_err, R_observer_name, R_wildcard_name);
-  t_bool unbind_tracers       (t_err, R_observer_name, R_wildcard_name);
+  t_void   bind_tracer        (t_err, R_observer_name, R_tracer_name);
+  t_void   bind_tracers       (t_err, R_observer_name, R_wildcard_name);
+  t_void unbind_tracers       (t_err, R_observer_name, R_wildcard_name);
   t_bool is_tracer_bound      (t_err, R_observer_name, R_tracer_name);
-  t_bool fetch_bound_tracers  (t_err, R_observer_name, r_tracer_names);
-  t_bool fetch_bound_observers(t_err, R_tracer_name,   r_observer_names);
+  t_void fetch_bound_tracers  (t_err, R_observer_name, r_tracer_names);
+  t_void fetch_bound_observers(t_err, R_tracer_name,   r_observer_names);
 
 ///////////////////////////////////////////////////////////////////////////////
 

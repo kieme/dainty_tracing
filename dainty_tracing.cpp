@@ -828,15 +828,12 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-    virtual t_validity update(t_thd_err err,
-                              r_pthread_attr) noexcept override {
+    virtual t_void update(t_thd_err err, r_pthread_attr) noexcept override {
       printf("thread update - before thread is created\n");
-      return VALID;
     }
 
-    virtual t_validity prepare(t_thd_err err) noexcept override {
+    virtual t_void prepare(t_thd_err err) noexcept override {
       printf("thread prepare - after thread is created\n");
-      return VALID;
     }
 
     virtual p_void run() noexcept override {
@@ -1281,15 +1278,15 @@ namespace tracer
         shared_tr_ {make_tracer(err, P_cstr{"shared"}, t_tracer_params())} {
     }
 
-    t_tracer_name get_point_name(R_id id) {
+    t_tracer_name get_point_name(r_err err, R_id id) {
       t_get_point_name_cmd_ cmd{id};
-      cmd_client_.request(cmd);
+      cmd_client_.request(err, cmd);
       return cmd.name;
     }
 
-    t_level get_point_level(R_id id) {
+    t_level get_point_level(r_err err, R_id id) {
       t_get_point_level_cmd_ cmd{id};
-      cmd_client_.request(cmd);
+      cmd_client_.request(err, cmd);
       return cmd.level;
     }
 
@@ -1416,7 +1413,15 @@ namespace tracer
 
     t_void destroy_tracer(tracer::t_id id) {
       t_destroy_tracer_cmd_ cmd{id};
-      cmd_client_.request(cmd);
+      t_err err; // XXX
+      cmd_client_.request(err, cmd);
+    }
+
+    t_errn do_chain(t_que_chain& chain) {
+      t_do_chain_cmd_ cmd{chain};
+      t_err err; // XXX
+      cmd_client_.request(err, cmd);
+      return t_errn(err.id());
     }
 
     t_void do_chain(r_err err, t_que_chain& chain) {
@@ -1424,19 +1429,15 @@ namespace tracer
       cmd_client_.request(err, cmd);
     }
 
-    t_validity do_chain(t_que_chain& chain) {
-      t_do_chain_cmd_ cmd{chain};
-      return cmd_client_.request(cmd);
-    }
-
-    t_validity clean_death() {
+    t_void clean_death() {
       t_clean_death_cmd_ cmd;
-      return cmd_client_.request(cmd);
+      t_err err; // XXX
+      cmd_client_.request(err, cmd);
     }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-    t_validity shared_trace(t_level level, R_text text) {
+    t_errn shared_trace(t_level level, R_text text) {
       return ref(shared_tr_).post(level, text);
     }
 
@@ -1444,7 +1445,7 @@ namespace tracer
       ref(shared_tr_).post(err, level, text);
     }
 
-    t_validity post(R_id id, t_level level, R_tracer_name name, R_text text) {
+    t_errn post(R_id id, t_level level, R_tracer_name name, R_text text) {
       t_que_chain chain = que_client_.acquire();
       if (get(chain.cnt)) {
         t_item_& item = chain.head->ref().any.emplace<t_item_>(t_any_user{0L});
@@ -1456,7 +1457,7 @@ namespace tracer
         return level > CRITICAL ? que_client_.compared_insert(chain) :
                                   do_chain(chain);
       }
-      return INVALID;
+      return t_errn{-1};
     }
 
     t_void post(r_err err, R_id id, t_level level, R_tracer_name name,
@@ -1476,7 +1477,7 @@ namespace tracer
       }
     }
 
-    t_validity waitable_post(R_id id, t_level level, R_tracer_name name,
+    t_errn waitable_post(R_id id, t_level level, R_tracer_name name,
                              R_text text) {
       t_que_chain chain = que_client_.waitable_acquire();
       if (get(chain.cnt)) {
@@ -1489,7 +1490,7 @@ namespace tracer
         return level > CRITICAL ? que_client_.compared_insert(chain) :
                                   do_chain(chain);
       }
-      return INVALID;
+      return t_errn{-1};
     }
 
     t_void waitable_post(r_err err, R_id id, t_level level,
@@ -1552,12 +1553,12 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_validity t_point::post(t_level level, R_text text) const {
+  t_errn t_point::post(t_level level, R_text text) const {
     if (tracing::tr_)
       return level < NOTICE ?
                tracing::tr_->waitable_post(id_, level, name_, text) :
                tracing::tr_->post         (id_, level, name_, text);
-    return INVALID;
+    return t_errn{-1};
   }
 
   t_void t_point::post(t_err err, t_level level, R_text text) const {
@@ -1572,10 +1573,10 @@ namespace tracer
     }
   }
 
-  t_validity t_point::waitable_post(t_level level, R_text text) const {
+  t_errn t_point::waitable_post(t_level level, R_text text) const {
     if (tracing::tr_)
       return tracing::tr_->waitable_post(id_, level, name_, text);
-    return INVALID;
+    return t_errn{-1};
   }
 
   t_void t_point::waitable_post(t_err err, t_level level, R_text text) const {
@@ -1587,15 +1588,19 @@ namespace tracer
     }
   }
 
-  t_name t_point::get_name() const {
-    if (tracing::tr_)
-      return tracing::tr_->get_point_name(id_);
+  t_name t_point::get_name(t_err err) const {
+    ERR_GUARD(err) {
+      if (tracing::tr_)
+        return tracing::tr_->get_point_name(err, id_);
+    }
     return t_name();
   }
 
-  t_level t_point::get_level() const {
-    if (tracing::tr_)
-      return tracing::tr_->get_point_level(id_);
+  t_level t_point::get_level(t_err err) const {
+    ERR_GUARD(err) {
+      if (tracing::tr_)
+        return tracing::tr_->get_point_level(err, id_);
+    }
     return EMERG;
   }
 
@@ -1623,10 +1628,10 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-  t_validity shared_trace(t_level level, R_text text) {
+  t_errn shared_trace(t_level level, R_text text) {
     if (tracing::tr_)
       return tracing::tr_->shared_trace(level, text);
-    return INVALID;
+    return t_errn{-1};
   }
 
   t_void shared_trace(t_err err, t_level level, R_text text) {

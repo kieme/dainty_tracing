@@ -1592,6 +1592,7 @@ namespace tracer
     ERR_GUARD(err) {
       if (tracing::tr_)
         return tracing::tr_->get_point_name(err, id_);
+      err = err::E_XXX;
     }
     return t_name();
   }
@@ -1600,6 +1601,7 @@ namespace tracer
     ERR_GUARD(err) {
       if (tracing::tr_)
         return tracing::tr_->get_point_level(err, id_);
+      err = err::E_XXX;
     }
     return EMERG;
   }

@@ -1274,7 +1274,7 @@ namespace tracer
       : logic_     {err, params},
         cmd_client_{logic_.make_cmd_client()},
         que_client_{logic_.make_que_client()},
-        thread_    {err, P_cstr{"tracing"}, &logic_, false},
+        thread_    {err, P_cstr{"tracing"}, {&logic_, nullptr}},
         shared_tr_ {make_tracer(err, P_cstr{"shared"}, t_tracer_params())} {
     }
 

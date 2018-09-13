@@ -156,7 +156,7 @@ namespace tracer
       line += ") ";
     }
     if (get(cnt) != 1)
-      line.append(FMT, "cnt=%u ", get(cnt));
+      line.append(FMT, "cnt=%lu ", get(cnt));
     line += text;
     return line;
   }

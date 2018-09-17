@@ -810,7 +810,7 @@ namespace tracer
                    public t_que_processor::t_logic,
                    public t_dispatcher::t_logic {
   public:
-    t_logic_(tracing::t_err err, R_params params)
+    t_logic_(err::t_err& err, R_params params)
       : data_         {params},
         ftrace_       {err},
         cmd_processor_{err},
@@ -839,7 +839,7 @@ namespace tracer
     virtual p_void run() noexcept override {
       printf("tracing: run\n");
 
-      tracing::t_err err;
+      err::t_err err;
       {
         t_cmd_proxy_ cmd_proxy{err, action_, cmd_processor_, *this};
         dispatcher_.add_event (err, {cmd_processor_.get_fd(), RD}, &cmd_proxy);
@@ -937,12 +937,12 @@ namespace tracer
 
 ///////////////////////////////////////////////////////////////////////////////
 
-    t_void process(tracing::t_err err, r_do_chain_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_do_chain_cmd_ cmd) noexcept {
       printf("tracing: r_do_chain_cmd_\n");
       process_chain(cmd.chain);
     }
 
-    t_void process(tracing::t_err err, r_update_params_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_update_params_cmd_ cmd) noexcept {
       printf("tracing: r_update_params_cmd_\n");
       if (get(data_.params.queuesize)   == get(cmd.params.queuesize) &&
           get(data_.params.max_tracers) == get(cmd.params.max_tracers)) {
@@ -955,12 +955,12 @@ namespace tracer
         err = err::E_XXX;
     }
 
-    t_void process(tracing::t_err err, r_fetch_params_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_fetch_params_cmd_ cmd) noexcept {
       printf("tracing: r_fetch_params_cmd_\n");
       cmd.params = data_.params;
     }
 
-    t_void process(tracing::t_err err, r_get_point_name_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_get_point_name_cmd_ cmd) noexcept {
       printf("tracing: r_get_point_name_cmd_\n");
       auto tracer = data_.is_tracer(cmd.id);
       if (tracer) {
@@ -969,7 +969,7 @@ namespace tracer
         err = err::E_XXX;
     }
 
-    t_void process(tracing::t_err err, r_get_point_level_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_get_point_level_cmd_ cmd) noexcept {
       printf("tracing: r_get_point_level_cmd_\n");
       auto tracer = data_.is_tracer(cmd.id);
       if (tracer) {
@@ -978,23 +978,23 @@ namespace tracer
         err = err::E_XXX;
     }
 
-    t_void process(tracing::t_err err, r_make_tracer_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_make_tracer_cmd_ cmd) noexcept {
       printf("tracing: r_make_tracer_cmd_\n");
       cmd.id = data_.add_tracer(err, cmd.name, cmd.params);
     }
 
-    t_void process(tracing::t_err err, r_update_tracer_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_update_tracer_cmd_ cmd) noexcept {
       printf("tracing: r_update_tracer_cmd_\n");
       data_.update_tracer(err, cmd.name, cmd.level);
     }
 
-    t_void process(tracing::t_err err,
+    t_void process(err::t_err err,
                    r_update_tracer_params_cmd_ cmd) noexcept {
       printf("tracing: r_update_tracer_params_cmd_\n");
       data_.update_tracer(err, cmd.name, cmd.params);
     }
 
-    t_void process(tracing::t_err err, r_is_tracer_params_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_is_tracer_params_cmd_ cmd) noexcept {
       printf("tracing: r_is_tracer_params_cmd_\n");
       cmd.found = false;
       auto tracer = data_.is_tracer(cmd.name);
@@ -1005,7 +1005,7 @@ namespace tracer
         err = err::E_XXX;
     }
 
-    t_void process(tracing::t_err err, r_is_tracer_info_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_is_tracer_info_cmd_ cmd) noexcept {
       printf("tracing: r_is_tracer_info_cmd_\n");
       cmd.found = false;
       auto tracer = data_.is_tracer(cmd.name);
@@ -1018,12 +1018,12 @@ namespace tracer
         err = err::E_XXX;
     }
 
-    t_void process(tracing::t_err err, r_fetch_tracers_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_fetch_tracers_cmd_ cmd) noexcept {
       printf("tracing: r_fetch_tracers_cmd_\n");
       // XXX-1
     }
 
-    t_void process(tracing::t_err err, r_create_observer_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_create_observer_cmd_ cmd) noexcept {
       printf("tracing: r_create_observer_cmd_\n");
       t_output_impl_ptr_ impl;
       switch (cmd.params.output) {
@@ -1040,18 +1040,18 @@ namespace tracer
       data_.add_observer(err, cmd.name, cmd.params, std::move(impl));
     }
 
-    t_void process(tracing::t_err err, r_destroy_observer_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_destroy_observer_cmd_ cmd) noexcept {
       printf("tracing: r_destroy_observer_cmd_\n");
       data_.del_observer(err, cmd.name);
     }
 
-    t_void process(tracing::t_err err, r_update_observer_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_update_observer_cmd_ cmd) noexcept {
       printf("tracing: r_update_observer_cmd_\n");
       // check if new logger is required
       // XXX-4
     }
 
-    t_void process(tracing::t_err err, r_is_observer_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_is_observer_cmd_ cmd) noexcept {
       printf("tracing: r_is_observer_cmd_\n");
       auto observer = data_.is_observer(cmd.name);
       if (observer) {
@@ -1061,7 +1061,7 @@ namespace tracer
         cmd.found = false;
     }
 
-    t_void process(tracing::t_err err, r_is_observer_info_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_is_observer_info_cmd_ cmd) noexcept {
       printf("tracing: r_is_observer_info_cmd_\n");
       auto observer = data_.is_observer(cmd.name);
       if (observer) {
@@ -1071,49 +1071,47 @@ namespace tracer
         cmd.found = false;
     }
 
-    t_void process(tracing::t_err err, r_fetch_observers_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_fetch_observers_cmd_ cmd) noexcept {
       printf("tracing: r_fetch_observers_cmd_\n");
       // XXX-6
     }
 
-    t_void process(tracing::t_err err, r_bind_tracer_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_bind_tracer_cmd_ cmd) noexcept {
       printf("tracing: r_bind_tracer_cmd_\n");
       data_.bind_tracer(err, cmd.name, cmd.tracer_name);
     }
 
-    t_void process(tracing::t_err err, r_bind_tracers_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_bind_tracers_cmd_ cmd) noexcept {
       printf("tracing: r_bind_tracers_cmd_\n");
       data_.bind_tracers(err, cmd.name, cmd.wildcard_name);
     }
 
-    t_void process(tracing::t_err err, r_unbind_tracers_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_unbind_tracers_cmd_ cmd) noexcept {
       printf("tracing: r_unbind_tracers_cmd_\n");
       data_.unbind_tracers(err, cmd.name, cmd.wildcard_name);
     }
 
-    t_void process(tracing::t_err err, r_is_tracer_bound_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_is_tracer_bound_cmd_ cmd) noexcept {
       printf("tracing: r_is_tracer_bound_cmd_\n");
       cmd.found = data_.is_tracer_bound(cmd.name, cmd.tracer_name);
     }
 
-    t_void process(tracing::t_err err,
-                   r_fetch_bound_tracers_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_fetch_bound_tracers_cmd_ cmd) noexcept {
       printf("tracing: r_fetch_bound_tracers_cmd_\n");
       data_.fetch_bound_tracers(err, cmd.name, cmd.tracer_names);
     }
 
-    t_void process(tracing::t_err err,
-                   r_fetch_bound_observers_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_fetch_bound_observers_cmd_ cmd) noexcept {
       printf("tracing: r_fetch_bound_observers_cmd_\n");
       data_.fetch_bound_observers(err, cmd.name, cmd.observer_names);
     }
 
-    t_void process(tracing::t_err err, r_destroy_tracer_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_destroy_tracer_cmd_ cmd) noexcept {
       printf("tracing: r_destroy_tracer_cmd_\n");
       data_.del_tracer(cmd.id);
     }
 
-    t_void process(tracing::t_err err, r_clean_death_cmd_ cmd) noexcept {
+    t_void process(err::t_err err, r_clean_death_cmd_ cmd) noexcept {
       printf("tracing: r_clean_death_cmd_\n");
       action_.cmd = QUIT_EVENT_LOOP;
     }
@@ -1210,7 +1208,7 @@ namespace tracer
   private:
     class t_cmd_proxy_ : public t_event_logic {
     public:
-      t_cmd_proxy_(tracing::t_err& err, t_action& action,
+      t_cmd_proxy_(err::t_err& err, t_action& action,
                    t_cmd_processor& processor, t_cmd_processor::t_logic& logic)
         : err_(err), action_(action), processor_(processor), logic_{logic} {
       }
@@ -1226,7 +1224,7 @@ namespace tracer
       }
 
     private:
-      tracing::t_err&           err_;
+      err::t_err&               err_;
       t_action&                 action_;
       t_cmd_processor&          processor_;
       t_cmd_processor::t_logic& logic_;
@@ -1234,7 +1232,7 @@ namespace tracer
 
     class t_que_proxy_ : public t_event_logic {
     public:
-      t_que_proxy_(tracing::t_err& err, t_action& action,
+      t_que_proxy_(err::t_err& err, t_action& action,
                    t_que_processor& processor, t_que_processor::t_logic& logic)
         : err_(err), action_(action), processor_(processor), logic_{logic} {
       }
@@ -1250,7 +1248,7 @@ namespace tracer
       }
 
     private:
-      tracing::t_err&           err_;
+      err::t_err&               err_;
       t_action&                 action_;
       t_que_processor&          processor_;
       t_que_processor::t_logic& logic_;
@@ -1555,35 +1553,34 @@ namespace tracer
 ///////////////////////////////////////////////////////////////////////////////
 
   t_errn t_point::post(t_level level, R_text text) const {
-    if (tracing::tr_)
-      return level < NOTICE ?
-               tracing::tr_->waitable_post(id_, level, name_, text) :
-               tracing::tr_->post         (id_, level, name_, text);
+    if (tr_)
+      return level < NOTICE ?  tr_->waitable_post(id_, level, name_, text) :
+                               tr_->post         (id_, level, name_, text);
     return t_errn{-1};
   }
 
   t_void t_point::post(t_err err, t_level level, R_text text) const {
     ERR_GUARD(err) {
-      if (tracing::tr_) {
+      if (tr_) {
         if (level < NOTICE)
-          tracing::tr_->waitable_post(err, id_, level, name_, text);
+          tr_->waitable_post(err, id_, level, name_, text);
         else
-          tracing::tr_->post(err, id_, level, name_, text);
+          tr_->post(err, id_, level, name_, text);
       } else
         err = err::E_XXX;
     }
   }
 
   t_errn t_point::waitable_post(t_level level, R_text text) const {
-    if (tracing::tr_)
-      return tracing::tr_->waitable_post(id_, level, name_, text);
+    if (tr_)
+      return tr_->waitable_post(id_, level, name_, text);
     return t_errn{-1};
   }
 
   t_void t_point::waitable_post(t_err err, t_level level, R_text text) const {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->waitable_post(err, id_, level, name_, text);
+      if (tr_)
+        tr_->waitable_post(err, id_, level, name_, text);
       else
         err = err::E_XXX;
     }
@@ -1591,8 +1588,8 @@ namespace tracer
 
   t_name t_point::get_name(t_err err) const {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        return tracing::tr_->get_point_name(err, id_);
+      if (tr_)
+        return tr_->get_point_name(err, id_);
       err = err::E_XXX;
     }
     return t_name();
@@ -1600,8 +1597,8 @@ namespace tracer
 
   t_level t_point::get_level(t_err err) const {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        return tracing::tr_->get_point_level(err, id_);
+      if (tr_)
+        return tr_->get_point_level(err, id_);
       err = err::E_XXX;
     }
     return EMERG;
@@ -1613,15 +1610,15 @@ namespace tracer
   }
 
   t_tracer& t_tracer::operator=(x_tracer tracer) {
-    if (point_ == VALID && tracing::tr_)
-      tracing::tr_->destroy_tracer(point_.id_.release());
+    if (point_ == VALID && tr_)
+      tr_->destroy_tracer(point_.id_.release());
     point_.id_ = tracer.point_.id_.release();
     return *this;
   }
 
   t_tracer::~t_tracer() {
-    if (point_ == VALID && tracing::tr_)
-      tracing::tr_->destroy_tracer(point_.id_.release());
+    if (point_ == VALID && tr_)
+      tr_->destroy_tracer(point_.id_.release());
   }
 
   t_point t_tracer::make_point(R_name name) {
@@ -1632,15 +1629,15 @@ namespace tracer
 ///////////////////////////////////////////////////////////////////////////////
 
   t_errn shared_trace(t_level level, R_text text) {
-    if (tracing::tr_)
-      return tracing::tr_->shared_trace(level, text);
+    if (tr_)
+      return tr_->shared_trace(level, text);
     return t_errn{-1};
   }
 
   t_void shared_trace(t_err err, t_level level, R_text text) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->shared_trace(err, level, text);
+      if (tr_)
+        tr_->shared_trace(err, level, text);
       else
         err = err::E_XXX;
     }
@@ -1700,8 +1697,8 @@ namespace tracer
 
   t_void update(t_err err, R_params params) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->update(err, params);
+      if (tr_)
+        tr_->update(err, params);
       else
         err = err::E_XXX;
     }
@@ -1709,8 +1706,8 @@ namespace tracer
 
   t_void fetch(t_err err, r_params params) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->fetch(err, params);
+      if (tr_)
+        tr_->fetch(err, params);
       else
         err = err::E_XXX;
     }
@@ -1718,8 +1715,8 @@ namespace tracer
 
   t_tracer make_tracer(t_err err, R_tracer_name name) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        return tracing::tr_->make_tracer(err, name, t_tracer_params());
+      if (tr_)
+        return tr_->make_tracer(err, name, t_tracer_params());
       err = err::E_XXX;
     }
     return mk_(tracer::t_id{}, tracer::t_name{});
@@ -1727,8 +1724,8 @@ namespace tracer
 
   t_tracer make_tracer(t_err err, R_tracer_name name, R_tracer_params params) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        return tracing::tr_->make_tracer(err, name, params);
+      if (tr_)
+        return tr_->make_tracer(err, name, params);
       err = err::E_XXX;
     }
     return mk_(tracer::t_id{}, tracer::t_name{});
@@ -1736,8 +1733,8 @@ namespace tracer
 
   t_void update_tracer(t_err err, R_wildcard_name name, t_level level) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->update_tracer(err, name, level);
+      if (tr_)
+        tr_->update_tracer(err, name, level);
       else
         err = err::E_XXX;
     }
@@ -1746,8 +1743,8 @@ namespace tracer
   t_void update_tracer(t_err err, R_tracer_name name,
                        R_tracer_params params) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->update_tracer(err, name, params);
+      if (tr_)
+        tr_->update_tracer(err, name, params);
       else
         err = err::E_XXX;
     }
@@ -1755,8 +1752,8 @@ namespace tracer
 
   t_bool is_tracer(t_err err, R_tracer_name name, r_tracer_params params) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        return tracing::tr_->is_tracer(err, name, params);
+      if (tr_)
+        return tr_->is_tracer(err, name, params);
       err = err::E_XXX;
     }
     return false;
@@ -1765,8 +1762,8 @@ namespace tracer
   t_bool is_tracer(t_err err, R_tracer_name name, r_tracer_info info,
                       t_bool clear_stats) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        return tracing::tr_->is_tracer(err, name, info, clear_stats);
+      if (tr_)
+        return tr_->is_tracer(err, name, info, clear_stats);
       err = err::E_XXX;
     }
     return false;
@@ -1774,8 +1771,8 @@ namespace tracer
 
   t_void fetch_tracers(t_err err, r_tracer_infos infos, t_bool clear_stats) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->fetch_tracers(err, infos, clear_stats);
+      if (tr_)
+        tr_->fetch_tracers(err, infos, clear_stats);
       else
         err = err::E_XXX;
     }
@@ -1785,8 +1782,8 @@ namespace tracer
 
   t_void create_observer(t_err err, R_observer_name name) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->create_observer(err, name, t_observer_params());
+      if (tr_)
+        tr_->create_observer(err, name, t_observer_params());
       else
         err = err::E_XXX;
     }
@@ -1795,8 +1792,8 @@ namespace tracer
   t_void create_observer(t_err err, R_observer_name name,
                              R_observer_params params) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->create_observer(err, name, params);
+      if (tr_)
+        tr_->create_observer(err, name, params);
       else
         err = err::E_XXX;
     }
@@ -1804,8 +1801,8 @@ namespace tracer
 
   t_void destroy_observer(t_err err, R_observer_name name) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->destroy_observer(err, name);
+      if (tr_)
+        tr_->destroy_observer(err, name);
       else
         err = err::E_XXX;
     }
@@ -1814,8 +1811,8 @@ namespace tracer
   t_void update_observer(t_err err, R_observer_name name,
                          R_observer_params params) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->update_observer(err, name, params);
+      if (tr_)
+        tr_->update_observer(err, name, params);
       else
         err = err::E_XXX;
     }
@@ -1824,8 +1821,8 @@ namespace tracer
   t_bool is_observer(t_err err, R_observer_name name,
                      r_observer_params params) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        return tracing::tr_->is_observer(err, name, params);
+      if (tr_)
+        return tr_->is_observer(err, name, params);
       err = err::E_XXX;
     }
     return false;
@@ -1834,8 +1831,8 @@ namespace tracer
   t_bool is_observer(t_err err, R_observer_name name,
                     r_observer_info info, t_bool clear_stats) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        return tracing::tr_->is_observer(err, name, info, clear_stats);
+      if (tr_)
+        return tr_->is_observer(err, name, info, clear_stats);
       err = err::E_XXX;
     }
     return false;
@@ -1844,8 +1841,8 @@ namespace tracer
   t_void fetch_observers(t_err err, r_observer_infos infos,
                          t_bool clear_stats) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->fetch_observers(err, infos, clear_stats);
+      if (tr_)
+        tr_->fetch_observers(err, infos, clear_stats);
       else
         err = err::E_XXX;
     }
@@ -1856,8 +1853,8 @@ namespace tracer
   t_void bind_tracer(t_err err, R_observer_name name,
                      R_tracer_name tracer_name) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->bind_tracer(err, name, tracer_name);
+      if (tr_)
+        tr_->bind_tracer(err, name, tracer_name);
       else
         err = err::E_XXX;
     }
@@ -1866,8 +1863,8 @@ namespace tracer
   t_void bind_tracers (t_err err, R_observer_name name,
                        R_wildcard_name wildcard) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->bind_tracers(err, name, wildcard);
+      if (tr_)
+        tr_->bind_tracers(err, name, wildcard);
       else
         err = err::E_XXX;
     }
@@ -1876,8 +1873,8 @@ namespace tracer
   t_void unbind_tracers(t_err err, R_observer_name name,
                         R_wildcard_name wildcard) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->unbind_tracers(err, name, wildcard);
+      if (tr_)
+        tr_->unbind_tracers(err, name, wildcard);
       else
         err = err::E_XXX;
     }
@@ -1886,8 +1883,8 @@ namespace tracer
   t_bool is_tracer_bound(t_err err, R_observer_name name,
                          R_tracer_name tracer_name) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        return tracing::tr_->is_tracer_bound(err, name, tracer_name);
+      if (tr_)
+        return tr_->is_tracer_bound(err, name, tracer_name);
       err = err::E_XXX;
     }
     return false;
@@ -1896,8 +1893,8 @@ namespace tracer
   t_void fetch_bound_tracers(t_err err, R_observer_name name,
                              r_tracer_names tracer_names) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->fetch_bound_tracers(err, name, tracer_names);
+      if (tr_)
+        tr_->fetch_bound_tracers(err, name, tracer_names);
       else
         err = err::E_XXX;
     }
@@ -1906,8 +1903,8 @@ namespace tracer
   t_void fetch_bound_observers(t_err err, R_tracer_name name,
                                r_observer_names observer_names) {
     ERR_GUARD(err) {
-      if (tracing::tr_)
-        tracing::tr_->fetch_bound_observers(err, name, observer_names);
+      if (tr_)
+        tr_->fetch_bound_observers(err, name, observer_names);
       else
         err = err::E_XXX;
     }

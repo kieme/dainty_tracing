@@ -880,6 +880,11 @@ namespace tracer
       return true; // die
     }
 
+    virtual t_quit notify_events_processed()  override {
+      printf("tracing: notify_events_processed\n");
+      return false; // die
+    }
+
 ///////////////////////////////////////////////////////////////////////////////
 
     t_void process_item(waitable_chained_queue::t_entry& entry) {

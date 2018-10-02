@@ -175,7 +175,7 @@ namespace tracer
   using p_output_impl_     = t_prefix<t_output_impl_>::p_;
   using t_output_impls_    = std::vector<p_output_impl_>;
   using p_output_impls_    = t_prefix<t_output_impls_>::p_;
-  using t_output_impl_ptr_ = ptr::t_passable_ptr<t_output_impl_>;
+  using t_output_impl_ptr_ = container::ptr::t_passable_ptr<t_output_impl_>;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -183,7 +183,7 @@ namespace tracer
   public:
     virtual t_void notify(R_observer_name name, t_level level, R_date,
                           R_line line) override {
-      P_cstr_ who = get(name.c_str()), msg = get(line.c_str());
+      P_cstr_ who = get(name.get_cstr()), msg = get(line.get_cstr());
       switch (level) {
         case EMERG:    ::syslog(LOG_EMERG,   "[%s] %s", who, msg); break;
         case ALERT:    ::syslog(LOG_ALERT,   "[%s] %s", who, msg); break;
@@ -626,7 +626,7 @@ namespace tracer
                          t_level level) {
       t_bool found = false; // XXX r_err not used - why have it in call
       for (auto&& tracer : tracers_) {
-        if (tracer.first.match(wildcard_name)) {
+        if (tracer.first.is_match(wildcard_name)) {
           if (tracer.second.data) {
             tracer.second.data->info.params.level = level;
             found = true;
@@ -760,7 +760,7 @@ namespace tracer
       auto observer = is_observer(name);
       if (observer) {
         for (auto&& tracer : tracers_) {
-          if (tracer.first.match(wildcard_name)) {
+          if (tracer.first.is_match(wildcard_name)) {
             if (std::find(std::cbegin(tracer.second.observers),
                           std::cend  (tracer.second.observers), observer) ==
                 std::end(tracer.second.observers)) {
@@ -780,7 +780,7 @@ namespace tracer
         for (auto i = observer->info.tracers.begin();
              i != observer->info.tracers.end(); ) {
           t_tracer_name& tracer_name = *i;
-          if (tracer_name.match(wildcard_name)) {
+          if (tracer_name.is_match(wildcard_name)) {
             auto tracer = tracers_.find(tracer_name);
             tracer->second.observers.erase(
               std::find(std::cbegin(tracer->second.observers),
@@ -920,7 +920,7 @@ namespace tracer
 
           case ALL: {
             if (data_.params.to_terminal)
-              printf("%s %s\n", get(date.c_str()), get(line.c_str()));
+              printf("%s %s\n", get(date.get_cstr()), get(line.get_cstr()));
             if (data_.params.to_observers)
               for (auto observer : *data->observers)
                 if (level <= observer->info.params.level)
@@ -931,7 +931,7 @@ namespace tracer
           case CONFIG: {
             if (level <= data->info.params.level) {
               if (data_.params.to_terminal)
-                printf("%s %s\n", get(date.c_str()), get(line.c_str()));
+                printf("%s %s\n", get(date.get_cstr()), get(line.get_cstr()));
               if (data_.params.to_observers)
                 for (auto observer : *data->observers)
                   if (level <= observer->info.params.level)
@@ -941,7 +941,8 @@ namespace tracer
           } break;
         }
       } else
-        printf("tracing: tracer(%s) died already\n", get(item.point.c_str()));
+        printf("tracing: tracer(%s) died already\n",
+               get(item.point.get_cstr()));
     }
 
     t_void process_chain(t_chain& chain) {
